@@ -1,0 +1,14 @@
+{
+  "blob_url": "AZURE_STORAGE_BLOB_URL",
+
+  "sources": [
+    "netsuite",
+    "freshdesk"
+    ],
+
+  "file_extension": ".json",
+
+  "target_container": "consolidated",
+
+  "log_file_name": "json_to_parquet"
+}
