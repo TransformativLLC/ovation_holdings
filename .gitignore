@@ -1,2 +1,3 @@
 common/.env
 .venv/
+data_management/client_data/

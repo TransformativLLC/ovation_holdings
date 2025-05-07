@@ -27,7 +27,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 # load the .env shipped with this package on import
-env_path = Path(__file__).resolve().parent / ".env"
+env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=env_path, override=False)
 
 
@@ -37,7 +37,7 @@ __all__ = [
     "get_azure_file_system_client",
     "get_parquet_file_from_data_lake",
     "save_df_as_parquet_in_data_lake",
-    "execute_single_directory_pipeline",
+    "convert_json_to_parquet",
     "get_transactions_and_line_items",
 ]
 
@@ -130,7 +130,7 @@ def read_files_in_batches_from_data_lake(file_system_client: FileSystemClient, s
     """
     dataframes = []
 
-    with tqdm(total=len(file_names), desc="Processing Files") as progress_bar:
+    with tqdm(total=len(file_names), desc=f"Processing {source_dir} Files") as progress_bar:
         for i in range(0, len(file_names), batch_size):
             batch_files = file_names[i:i + batch_size]
 
@@ -266,11 +266,11 @@ def get_parquet_file_from_data_lake(file_system_client, azure_directory_path: st
     return pd.read_parquet(parquet_buffer, engine='pyarrow')
 
 
-def execute_single_directory_pipeline(service_client,
-                                      source_container_name: str,
-                                      source_directory: str,
-                                      target_container_name: str = "consolidated",
-                                      target_directory: str = "raw") -> None:
+def convert_json_to_parquet(service_client: DataLakeServiceClient,
+                            source_container_name: str,
+                            source_directory: str,
+                            target_container_name: str = "consolidated",
+                            target_directory: str = "raw") -> None:
     """
     Converts JSON files in a single directory in the source container to Parquet files in target directory in the target container.
 
