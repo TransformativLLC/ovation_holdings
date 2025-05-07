@@ -31,6 +31,17 @@ env_path = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=env_path, override=False)
 
 
+# delegating to each module to simplify __init__.py
+__all__ = [
+    "get_azure_service_client",
+    "get_azure_file_system_client",
+    "get_parquet_file_from_data_lake",
+    "save_df_as_parquet_in_data_lake",
+    "execute_single_directory_pipeline",
+    "get_transactions_and_line_items",
+]
+
+
 # FUNCTIONS
 def get_azure_service_client(storage_url_env_var: str) -> DataLakeServiceClient:
     """

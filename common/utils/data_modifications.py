@@ -7,6 +7,13 @@ import numpy as np
 import pandas as pd
 
 
+# delegating to each module to simplify __init__.py
+__all__ = [
+    "set_subsidiary_by_location",
+    "add_category_levels_and_vsi_info",
+]
+
+
 # FUNCTIONS
 def set_subsidiary_by_location(df: pd.DataFrame, location_map: dict,
                                null_value: str = "null", replacement_value = "Not Specified") -> pd.DataFrame:

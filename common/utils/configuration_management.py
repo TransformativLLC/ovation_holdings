@@ -6,6 +6,12 @@ This module provides shared functions for managing configuration.
 import json
 
 
+# delegating to each module to simplify __init__.py
+__all__ = [
+    "load_config",
+]
+
+
 ### FUNCTIONS ###
 def load_config(file_path: str, flush_cache: bool = False) -> dict:
     """
