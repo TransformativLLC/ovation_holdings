@@ -1,3 +1,4 @@
 common/.env
 .venv/
 data_management/client_data/
+ovation_holdings.egg-info/

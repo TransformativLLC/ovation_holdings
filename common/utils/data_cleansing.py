@@ -17,7 +17,6 @@ __all__ = [
     "clean_illegal_chars_in_column",
     "round_float_columns",
     "get_cutoff_date",
-    "convert_json_strings_to_python_types",
 ]
 
 ### FUNCTIONS ###
@@ -136,63 +135,3 @@ def get_cutoff_date(months: int = 12) -> pd.Timestamp:
     """
     cutoff_date = datetime.date.today() - relativedelta(months=months)
     return pd.to_datetime(cutoff_date, errors="coerce")
-
-
-def convert_json_strings_to_python_types(df: pd.DataFrame, date_format: str = "%m/%d/%Y") -> pd.DataFrame:
-    """
-    Converts string representations of JSON data in a pandas DataFrame to appropriate Python
-    data types. This function processes `object` columns in the DataFrame to handle values
-    representing `null`, boolean, numeric, or datetime values. Specifically, it converts:
-
-    1. String "null" values to `None`.
-    2. String representations of boolean values ("T", "F", "True", "False", etc.) to Python
-       booleans.
-    3. String representations of numeric values to Python numeric types (int or float).
-    4. String representations of dates to Python datetime objects using the specified `date_format`.
-
-    The function handles each column in an iterative process, preserving other data types and
-    columns unaffected.
-
-    Args:
-        df (pd.DataFrame): Input DataFrame having columns with potential JSON-like string
-            representations of data.
-        date_format (str): Date format string to parse datetime values. Defaults to "%m/%d/%Y".
-
-    Returns:
-        pd.DataFrame: A new DataFrame with updated data types for `object` columns where applicable.
-    """
-    df = df.copy()
-
-    for col in df.columns:
-        if df[col].dtype == object:
-            df[col] = df[col].map(lambda x: None if isinstance(x, str) and x.strip().lower() == "null" else x)
-            df[col] = df[col].map(lambda x: x.strip() if isinstance(x, str) else x)
-
-    for col in df.select_dtypes(include=['object']).columns:
-        s = df[col]
-
-        # Datetime conversion with your specified format
-        try:
-            converted = pd.to_datetime(s, format=date_format, errors='raise')
-            df[col] = converted
-            continue
-        except Exception as e:
-            pass
-
-        # Numeric
-        try:
-            converted = pd.to_numeric(s, errors='raise')
-            df[col] = converted
-            continue
-        except Exception:
-            pass
-
-        # Boolean
-        if s.dropna().isin(['T', 'F', 'True', 'False', 'true', 'false']).all():
-            df[col] = s.map({
-                'T': True, 'F': False,
-                'True': True, 'False': False,
-                'true': True, 'false': False
-            })
-
-    return df

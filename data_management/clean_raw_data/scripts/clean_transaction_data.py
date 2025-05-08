@@ -1,20 +1,18 @@
-import sys
-import argparse
-
-sys.path.append('/Users/markbills/Library/CloudStorage/OneDrive-Transformativ,LLC/Clients/Ovation Holdings/src')
-
 # Standard libraries
 import datetime
-from typing import Literal
+import argparse
 
 # Azure Data Lake libraries
-import azure_data_lake_interface as adl
+import common.utils.azure_data_lake_interface as adl
+
+# data cleaning libraries
+import common.utils.data_modifications as dm
 
 # Data analysis libraries
 import pandas as pd
 
-# Helper function libraries
-import helper_functions as hf
+# config
+from common.utils.configuration_management import load_config
 
 
 # FUNCTIONS
@@ -33,7 +31,7 @@ def repair_rows(df: pd.DataFrame) -> pd.DataFrame:
         pd.DataFrame: A pandas DataFrame with repaired rows, where 'location' column values of "null" are replaced
         with "Not Specified," and other transformations are applied.
     """
-    df = hf.convert_json_strings_to_python_types(df)
+    df = dm.convert_json_strings_to_python_types(df)
 
     # Replace null values with replacement_value
     df["location"] = df["location"].replace("null", "Not Specified")
@@ -178,7 +176,7 @@ def augment_rows(df: pd.DataFrame, customer_df: pd.DataFrame, location_map: dict
         how="left")
 
     # match subsidiary by location in each line item, because they may be different
-    df = hf.set_subsidiary_by_location(df, location_map)
+    df = dm.set_subsidiary_by_location(df, location_map)
 
     return df
 
@@ -291,6 +289,7 @@ def augment_line_items(line_item_df: pd.DataFrame,
             IDs, creation dates, and order type.
         item_master_df (pd.DataFrame): A DataFrame containing item master details such as SKU, manufacturer,
             categories, and other attributes for items.
+        purchase_order_df: A DataFrame containing the purchase order line items
         customer_df: A DataFrame containing information about customers, which is used to enrich line item data
             along with the location map.
         location_map (dict): A mapping of locations used to map and enrich customer-related information for
@@ -318,7 +317,7 @@ def augment_line_items(line_item_df: pd.DataFrame,
     )
     line_item_df.drop("commission_only", axis=1, inplace=True)
 
-    line_item_df = hf.add_category_levels_and_vsi_info(line_item_df, item_master_df)
+    line_item_df = dm.add_category_levels_and_vsi_info(line_item_df, item_master_df)
 
     # calculate financial values for each line item
     line_item_df["total_amount"] = line_item_df["quantity"] * line_item_df["unit_price"]
@@ -366,7 +365,7 @@ def main() -> None:
     args = parser.parse_args()
 
     print(f"\rAttaching to data lake...")
-    config = hf.load_config("config/datalake_config.json", flush_cache=True)
+    config = load_config("common/config/datalake_config.json", flush_cache=True)
     service_client = adl.get_azure_service_client(config["blob_url"])
     file_system_client = adl.get_azure_file_system_client(service_client, "consolidated")
 
@@ -408,7 +407,7 @@ def main() -> None:
                                             f"transaction/{trans_type}ItemLineItems_cleaned.parquet")
 
         print(f"\rAugmenting {trans_type} transactions and line items...")
-        config = hf.load_config("config/location_subsidiary_map.json", flush_cache=True)
+        config = load_config("common/config/location_subsidiary_map.json", flush_cache=True)
         transactions = augment_transactions(transactions, customers, config["locations_subsidiary_map"])
         line_items = augment_line_items(line_items, transactions,items, po_lines,
                                         customers, config["locations_subsidiary_map"])
