@@ -7,6 +7,9 @@ from typing import Tuple
 # Azure Data Lake libraries
 import common.utils.azure_data_lake_interface as adl
 
+# data cleansing libraries
+from common.utils.data_cleansing import round_float_columns
+
 # Data analysis libraries
 import pandas as pd
 
@@ -21,7 +24,7 @@ def clean_filter_augment_purchase_orders(transactions: pd.DataFrame,
                                           line_items: pd.DataFrame,
                                           items: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Cleans, filters, and augments purchase orders by processing transactions and line items data.
+    Cleans, filters, and augments purchase orders by processing transactions and line df data.
     This function applies transformations such as date range filtering, removing irrelevant data, dropping
     non-essential columns, converting data types, and incorporating additional data from vendor and item
     sources. The resulting datasets are refined to better reflect purchase order data.
@@ -34,7 +37,7 @@ def clean_filter_augment_purchase_orders(transactions: pd.DataFrame,
 
     Returns:
         Tuple[pd.DataFrame, pd.DataFrame]: A tuple where the first element is the cleaned and transformed
-            transactions DataFrame, and the second element is the cleaned and augmented line items DataFrame.
+            transactions DataFrame, and the second element is the cleaned and augmented line df DataFrame.
 
     """
 
@@ -64,7 +67,7 @@ def clean_filter_augment_purchase_orders(transactions: pd.DataFrame,
     transactions = convert_json_strings_to_python_types(transactions)
     line_items = convert_json_strings_to_python_types(line_items)
 
-    # add created date to line items
+    # add created date to line df
     line_items = line_items.merge(transactions[["tranid", "created_date"]], on="tranid", how="left")
 
     # drop item types that are not related to products/services
@@ -75,11 +78,15 @@ def clean_filter_augment_purchase_orders(transactions: pd.DataFrame,
     transactions["location"] = transactions["location"].replace("null", "Not Specified")
     line_items["location"] = line_items["location"].replace("null", "Not Specified")
 
-    # replace values in line items with values from item master (levels and manufacturer)
+    # replace values in line df with values from item master (levels and manufacturer)
     line_items = add_category_levels_and_vsi_info(line_items, items)
 
     # calculate total amount for each line item
     line_items["total_amount"] = line_items["quantity"] * line_items["unit_price"]
+
+    # round floats to two decimals
+    transactions = round_float_columns(transactions)
+    line_items = round_float_columns(line_items)
 
     return transactions, line_items
 
@@ -124,7 +131,7 @@ def main():
                                             how="left")
 
     # save in the data lake
-    print("Saving enhanced purchase order line items in data lake...")
+    print("Saving enhanced purchase order line df in data lake...")
     adl.save_df_as_parquet_in_data_lake(augmented_line_items, file_system_client, "enhanced/netsuite",
                                         f"transaction/{trans_type}ItemLineItems_enhanced.parquet")
 

@@ -3,11 +3,17 @@ This module provides data cleansing/filtering functions shared across the projec
 """
 
 ### IMPORTS ###
+
+# standard libraries
+import re
 import datetime
 from dateutil.relativedelta import relativedelta
 
+# data manipulation
 import pandas as pd
-import re
+
+# config
+from common.utils.configuration_management import load_config
 
 
 # delegating to each module to simplify __init__.py
@@ -17,6 +23,7 @@ __all__ = [
     "clean_illegal_chars_in_column",
     "round_float_columns",
     "get_cutoff_date",
+    "clean_and_resolve_manufacturers",
 ]
 
 ### FUNCTIONS ###
@@ -135,3 +142,36 @@ def get_cutoff_date(months: int = 12) -> pd.Timestamp:
     """
     cutoff_date = datetime.date.today() - relativedelta(months=months)
     return pd.to_datetime(cutoff_date, errors="coerce")
+
+
+def clean_and_resolve_manufacturers(df: pd.DataFrame) -> pd.DataFrame:
+
+    # replace "empty" values with something more human-readable
+    df["manufacturer"] = df["manufacturer"].replace("null", "Not Specified")
+    df["custom_manufacturer"] = df["custom_manufacturer"].replace("null", "Not Specified")
+    df.loc[(df['vsi_mfr'] == "null") | (df['vsi_mfr'] == "Unknown") | (df['vsi_mfr'].isna()), 'vsi_mfr'] = "Not Specified"
+
+    # resolve multiple manufacturer columns
+    # -- put custom_manufacturer value in manufacturer if "Not Specified"
+    df.loc[df["manufacturer"] == "Not Specified", "manufacturer"] = df["custom_manufacturer"]
+
+    # -- put vsi_mfr value in manufacturer if "Not Specified" (which happens if custom_manufacturer was not specified)
+    df.loc[df["manufacturer"] == "Not Specified", "manufacturer"] = df["vsi_mfr"]
+
+    # Clean up manufacturer column
+    # -- remove special characters
+    df['manufacturer'] = df['manufacturer'].str.replace(r'[,.\/-]', ' ', regex=True)
+
+    # -- remove leading/trailing spaces and replace multiple spaces with a single space
+    df['manufacturer'] = df['manufacturer'].str.strip()
+    df['manufacturer'] = df['manufacturer'].str.replace(r'\s+', ' ', regex=True)
+
+    # -- capitalize the first letter of each word (removes all caps)
+    df['manufacturer'] = df['manufacturer'].str.title()
+
+    # remove all misspellings
+    mfg_name_map = load_config("common/config/manufacturer_name_map.json", flush_cache=True)["manufacturer_map"]
+    for correct_name, misspellings in mfg_name_map.items():
+        df.loc[df['manufacturer'].isin(misspellings), 'manufacturer'] = correct_name
+
+    return df

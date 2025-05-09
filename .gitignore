@@ -1,4 +1,6 @@
-common/.env
 .venv/
-data_management/client_data/
 ovation_holdings.egg-info/
+common/.env
+data_management/client_data/
+management_reports/transaction_variance/excel_outputs/
+

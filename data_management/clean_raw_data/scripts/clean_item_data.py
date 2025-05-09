@@ -7,6 +7,7 @@ import common.utils.azure_data_lake_interface as adl
 import pandas as pd
 
 # Data management libraries
+from common.utils.data_cleansing import round_float_columns, clean_and_resolve_manufacturers
 from common.utils.data_modifications import convert_json_strings_to_python_types
 
 # config
@@ -14,39 +15,6 @@ from common.utils.configuration_management import load_config
 
 
 # FUNCTIONS
-def clean_and_resolve_manufacturers(items: pd.DataFrame) -> pd.DataFrame:
-
-    # replace "empty" values with something more human-readable
-    items["manufacturer"] = items["manufacturer"].replace("null", "Not Specified")
-    items["custom_manufacturer"] = items["custom_manufacturer"].replace("null", "Not Specified")
-    items.loc[(items['vsi_mfr'] == "null") | (items['vsi_mfr'] == "Unknown") | (items['vsi_mfr'].isna()), 'vsi_mfr'] = "Not Specified"
-
-    # resolve multiple manufacturer columns
-    # -- put custom_manufacturer value in manufacturer if "Not Specified"
-    items.loc[items["manufacturer"] == "Not Specified", "manufacturer"] = items["custom_manufacturer"]
-
-    # -- put vsi_mfr value in manufacturer if "Not Specified" (which happens if custom_manufacturer was not specified)
-    items.loc[items["manufacturer"] == "Not Specified", "manufacturer"] = items["vsi_mfr"]
-
-    # Clean up manufacturer column
-    # -- remove special characters
-    items['manufacturer'] = items['manufacturer'].str.replace(r'[,.\/-]', ' ', regex=True)
-
-    # -- remove leading/trailing spaces and replace multiple spaces with a single space
-    items['manufacturer'] = items['manufacturer'].str.strip()
-    items['manufacturer'] = items['manufacturer'].str.replace(r'\s+', ' ', regex=True)
-
-    # -- capitalize the first letter of each word (removes all caps)
-    items['manufacturer'] = items['manufacturer'].str.title()
-
-    # remove all misspellings
-    mfg_name_map = load_config("common/config/manufacturer_name_map.json", flush_cache=True)["manufacturer_map"]
-    for correct_name, misspellings in mfg_name_map.items():
-        items.loc[items['manufacturer'].isin(misspellings), 'manufacturer'] = correct_name
-
-    return items
-
-
 def clean_and_filter_item_data(items: pd.DataFrame) -> pd.DataFrame:
     """
     Cleans and filters item data from a pandas DataFrame.
@@ -84,17 +52,20 @@ def clean_and_filter_item_data(items: pd.DataFrame) -> pd.DataFrame:
     # move any valid manufacturer into the manufacturer field from custom or vsi fields
     items = clean_and_resolve_manufacturers(items)
 
-    # remove items with item_names that start with "Inactivated"
+    # remove df with item_names that start with "Inactivated"
     items = items[~items["item_name"].str.startswith("Inactivated")]
 
-    # remove items with item names that contain the word "custom"
+    # remove df with item names that contain the word "custom"
     items = items[~items["item_name"].str.contains(r'\bcustom\b', case=False, regex=True)]
+
+    # round floats to two decimals
+    items = round_float_columns(items)
 
     return items
 
 
 def add_new_item_levels(items: pd.DataFrame, new_item_info_path: str, create_new_columns: bool = True) -> pd.DataFrame:
-    """Adds new item level categories from an Excel file to the items DataFrame.
+    """Adds new item level categories from an Excel file to the df DataFrame.
 
     Args:
         items (pd.DataFrame): DataFrame containing item information with existing level categories.
@@ -106,7 +77,7 @@ def add_new_item_levels(items: pd.DataFrame, new_item_info_path: str, create_new
     """
 
     if create_new_columns:
-        # add new level columns to items
+        # add new level columns to df
         for i in [4, 5, 6]:
             items[f"level_{i}_category"] = 'Not Specified'
 
@@ -123,7 +94,7 @@ def add_new_item_levels(items: pd.DataFrame, new_item_info_path: str, create_new
     for i in range(1, 7):
         level_info[f'Level {i}'] = level_info[f'Level {i}'].astype(str)
 
-    # Update level categories for matching items
+    # Update level categories for matching df
     for i in range(1, 7):
         items.loc[items['item_name'].isin(level_info['Name']), f'level_{i}_category'] = \
             items[items['item_name'].isin(level_info['Name'])]['item_name'].map(

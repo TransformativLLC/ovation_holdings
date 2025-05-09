@@ -15,14 +15,14 @@ import pandas as pd
 
 # DATA ENHANCEMENT FUNCTIONS
 def get_monthly_item_costs(df: pd.DataFrame) -> pd.DataFrame:
-    """Calculates monthly cost metrics for items from purchase order data.
+    """Calculates monthly cost metrics for df from purchase order data.
 
     Processes purchase order data to calculate various monthly cost metrics including
     quantity purchased, total spend, number of PO lines, and unit costs. Also computes
     a rolling maximum unit cost over the specified number of months.
 
     Args:
-        df: DataFrame containing purchase order line items with columns:
+        df: DataFrame containing purchase order line df with columns:
             created_date, item_name, manufacturer, description, item_type,
             quantity, total_amount, unit_price
         months: Number of months to use for calculating rolling maximum unit cost.
@@ -67,13 +67,13 @@ def get_monthly_item_costs(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_monthly_item_prices(df: pd.DataFrame) -> pd.DataFrame:
-    """Calculates monthly price metrics for items from invoice data.
+    """Calculates monthly price metrics for df from invoice data.
 
     Processes invoice line item data to calculate various monthly price metrics including
     quantity sold, total sales, number of invoice lines, and average unit prices.
 
     Args:
-        df: DataFrame containing invoice line items with columns:
+        df: DataFrame containing invoice line df with columns:
             created_date, sku, manufacturer, description, item_type,
             quantity, total_amount
 
@@ -142,10 +142,10 @@ def combine_and_enhance_line_item_data(po_lines: pd.DataFrame,
     on average unit prices and rolling maximum unit costs.
 
     Args:
-        po_lines: DataFrame containing purchase order line items with columns:
+        po_lines: DataFrame containing purchase order line df with columns:
             created_date, sku, manufacturer, description, item_type,
             quantity, total_amount, unit_price
-        trans_lines: DataFrame containing transaction line items with columns:
+        trans_lines: DataFrame containing transaction line df with columns:
             created_date, sku, manufacturer, description, item_type,
             quantity, total_amount
         items: DataFrame containing item master information
@@ -160,7 +160,7 @@ def combine_and_enhance_line_item_data(po_lines: pd.DataFrame,
             - Margin calculations (average margin amount and percentage)
     """
 
-    # remove trans line items with total amount <= 0 (implying price/quantity problems)
+    # remove trans line df with total amount <= 0 (implying price/quantity problems)
     # because it messes up the margin calculation
     if remove_zero_price_lines:
         trans_lines = trans_lines[trans_lines["total_amount"] > 0]
@@ -192,7 +192,7 @@ def combine_and_enhance_line_item_data(po_lines: pd.DataFrame,
         "vsi_mfr", "vsi_item_category"
     ]
 
-    # -- create a view of `items` keyed by skusk:
+    # -- create a view of `df` keyed by skusk:
     items_sub = items.set_index("sku")[columns_to_add]
 
     # -- join on the sku
@@ -244,7 +244,7 @@ print("Data retrieved.")
 
 print("Cleaning, combining, and enhancing data...")
 # CLEAN DATA
-# drop all line items that don't have a highest_recent_cost
+# drop all line df that don't have a highest_recent_cost
 line_items = line_items[~line_items.highest_recent_cost.isna()]
 
 # drop all po_lines before the earliest date in line_items

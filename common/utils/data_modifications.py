@@ -125,11 +125,11 @@ def add_category_levels_and_vsi_info(line_item_df: pd.DataFrame, item_master_df:
     """
 
     # drop manufacturer and category levels 1-3
-    cols = ["manufacturer"] + [f"level_{i}_category" for i in range(1, 4)]
+    cols = [f"level_{i}_category" for i in range(1, 4)]
     line_item_df = line_item_df.drop(columns=cols)
 
-    # add back cleaned/rationalized manufacturer and levels 1-6 and vsi_mfr and vsi_item_type columns from item master
-    cols = ["sku", "manufacturer", "vsi_mfr", "vsi_item_category"] + [f"level_{i}_category" for i in range(1, 7)]
+    # add category levels 1-6 and vsi_mfr and vsi_item_type columns from item master
+    cols = ["sku", "vsi_mfr", "vsi_item_category"] + [f"level_{i}_category" for i in range(1, 7)]
     line_item_df = line_item_df.merge(item_master_df[cols], how="left", on="sku")
 
     return line_item_df

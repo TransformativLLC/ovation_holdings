@@ -7,7 +7,7 @@ def describe_dataset(df: pd.DataFrame) -> str:
 
     This function analyzes and prints key information about the dataset including:
     - Date range of the data
-    - Number of unique inventory items
+    - Number of unique inventory df
     - List of columns with their data types
 
     Args:

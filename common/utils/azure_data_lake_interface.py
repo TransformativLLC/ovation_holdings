@@ -102,7 +102,7 @@ def read_file_from_data_lake(file_system_client: FileSystemClient, file_path: st
         # top level files have only one record
         # line item files have a list of records
         if isinstance(record, list):
-            df = pd.DataFrame(record)  # line items
+            df = pd.DataFrame(record)  # line df
         else:
             df = pd.DataFrame([record])  # top level record
 
@@ -299,7 +299,7 @@ def convert_json_to_parquet(service_client: DataLakeServiceClient,
 def get_transactions_and_line_items(file_system_client: FileSystemClient,
                                     trans_type: str, data_state: str = "raw") -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Retrieves transactions and associated line items from Azure Data Lake based on the transaction type.
+    Retrieves transactions and associated line df from Azure Data Lake based on the transaction type.
 
     Args:
         file_system_client (FileSystemClient): The client instance for interacting with the Azure Data Lake file system.
@@ -309,7 +309,7 @@ def get_transactions_and_line_items(file_system_client: FileSystemClient,
     Returns:
         Tuple[pd.DataFrame, pd.DataFrame]: A tuple containing two DataFrames:
             - The first DataFrame contains the transactions.
-            - The second DataFrame contains the associated line items.
+            - The second DataFrame contains the associated line df.
 
     Raises:
         ValueError: If `trans_type` is not one of the supported transaction types.

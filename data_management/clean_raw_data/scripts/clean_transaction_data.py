@@ -1,11 +1,13 @@
 # Standard libraries
 import datetime
 import argparse
+from typing import Literal
 
 # Azure Data Lake libraries
 import common.utils.azure_data_lake_interface as adl
 
 # data cleaning libraries
+from common.utils.data_cleansing import round_float_columns, clean_and_resolve_manufacturers
 import common.utils.data_modifications as dm
 
 # Data analysis libraries
@@ -36,6 +38,9 @@ def repair_rows(df: pd.DataFrame) -> pd.DataFrame:
     # Replace null values with replacement_value
     df["location"] = df["location"].replace("null", "Not Specified")
 
+    # round floats to two decimals
+    df = round_float_columns(df)
+
     return df
 
 
@@ -61,13 +66,14 @@ def repair_transactions(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def repair_line_items(df: pd.DataFrame) -> pd.DataFrame:
-    """Repairs line items in the given DataFrame by adjusting specific column values.
+    """
+    Repairs line df in the given DataFrame by adjusting specific column values.
     The function processes the DataFrame by calling a helper function to repair rows and then
     modifies the 'quantity' and 'amount' columns by converting negative values to positive.
     This ensures consistency in data representation.
 
     Args:
-        df (pd.DataFrame): The input DataFrame containing line items with columns
+        df (pd.DataFrame): The input DataFrame containing line df with columns
             including 'quantity' and 'amount'.
 
     Returns:
@@ -121,29 +127,31 @@ def clean_and_filter_transactions(df: pd.DataFrame, start_date: str, end_date: s
 
 def clean_and_filter_line_items(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Clean and filter line items in a DataFrame by removing irrelevant data to retain only
-    meaningful product or service-related entries. Drops unnecessary columns, excludes
-    items with both cost and unit price less than or equal to zero, and filters out non-relevant
-    item types.
+    Cleans and filters line item DataFrame based on specified conditions for use in
+    further processing. The function removes unnecessary data, filters relevant
+    records, and resolves manufacturer information.
 
     Args:
-        df (pd.DataFrame): DataFrame containing line item data including columns such as
-            'links', 'quote_po_rate', 'unit_price', and 'item_type'.
+        df (pd.DataFrame): Input DataFrame containing line item data to be
+            cleaned and filtered.
 
     Returns:
-        pd.DataFrame: A cleaned and filtered DataFrame containing only relevant product or
-            service-related entries.
+        pd.DataFrame: A cleaned and filtered DataFrame with irrelevant records and
+        unused fields removed. Also includes resolved manufacturer information.
     """
 
     # drop 'links' column (Netsuite inserts this)
     df = df.drop('links', axis=1)
 
-    # drop items with both cost and unit_price <= 0
+    # drop df with both cost and unit_price <= 0
     df = df.query('quote_po_rate > 0 or unit_price > 0')
     
     # drop item types that are not related to products/services
     drop_list = ["Description", "Markup", "Other Charge", "Payment", "Discount"]
     df = df[~df["item_type"].isin(drop_list)]
+
+    # move any valid manufacturer into the manufacturer field from custom or vsi fields
+    df = clean_and_resolve_manufacturers(df)
     
     return df
 
@@ -157,14 +165,14 @@ def augment_rows(df: pd.DataFrame, customer_df: pd.DataFrame, location_map: dict
     The function merges the input dataframe (`df`) with customer data (`customer_df`) to
     enrich it with customer-specific details such as company name, subsidiary name, end
     market, and sales representative. Additionally, it updates the subsidiary information
-    by matching locations in the line items using the provided location map.
+    by matching locations in the line df using the provided location map.
 
     Args:
         df (pd.DataFrame): A dataframe containing the initial data to be augmented.
         customer_df (pd.DataFrame): A dataframe with customer-related information including
             fields like customer_id, company_name, subsidiary_name, end_market, and sales_rep.
         location_map (dict): A dictionary defining location mappings used to set subsidiaries
-            for the relevant line items.
+            for the relevant line df.
 
     Returns:
         pd.DataFrame: The augmented dataframe with additional customer and subsidiary fields.
@@ -200,10 +208,6 @@ def augment_transactions(df: pd.DataFrame, customer_df: pd.DataFrame, location_m
     """
     return augment_rows(df, customer_df,location_map)
 
-
-
-from typing import Literal
-import pandas as pd
 
 def get_highest_recent_prices(
     line_items: pd.DataFrame,
@@ -253,7 +257,7 @@ def get_highest_recent_prices(
     # ensure sorted by date for merge_asof
     rolling.sort_values(date_col, inplace=True)
 
-    # ---- 3) As-of merge onto line items ----
+    # ---- 3) As-of merge onto line df ----
     merged = pd.merge_asof(
         li_sorted,
         rolling,
@@ -279,24 +283,24 @@ def augment_line_items(line_item_df: pd.DataFrame,
                        customer_df: pd.DataFrame,
                        location_map: dict) -> pd.DataFrame:
     """
-    Augments the line items DataFrame with additional details from related DataFrames such as transaction
+    Augments the line df DataFrame with additional details from related DataFrames such as transaction
     data, customer data, and item master data. It also performs data cleaning, feature engineering, and
     financial calculations at the line item level.
 
     Args:
-        line_item_df (pd.DataFrame): The line items DataFrame to be augmented.
+        line_item_df (pd.DataFrame): The line df DataFrame to be augmented.
         transaction_df (pd.DataFrame): A DataFrame containing transaction-level details, including transaction
             IDs, creation dates, and order type.
         item_master_df (pd.DataFrame): A DataFrame containing item master details such as SKU, manufacturer,
-            categories, and other attributes for items.
-        purchase_order_df: A DataFrame containing the purchase order line items
+            categories, and other attributes for df.
+        purchase_order_df: A DataFrame containing the purchase order line df
         customer_df: A DataFrame containing information about customers, which is used to enrich line item data
             along with the location map.
         location_map (dict): A mapping of locations used to map and enrich customer-related information for
-            corresponding line items.
+            corresponding line df.
 
     Returns:
-        pd.DataFrame: The augmented line items DataFrame including integrated details from transactions,
+        pd.DataFrame: The augmented line df DataFrame including integrated details from transactions,
             customers, and item master records, as well as computed financial metrics.
     """
 
@@ -304,10 +308,10 @@ def augment_line_items(line_item_df: pd.DataFrame,
     line_item_df = augment_rows(line_item_df, customer_df, location_map)
 
     # add transaction info to line_items
-    trans_level_cols = ["tranid", "created_date", 'commission_only', 'ai_order_type']
+    trans_level_cols = ["tranid", "created_date", 'commission_only', 'ai_order_type', 'entered_by']
     line_item_df = line_item_df.merge(transaction_df[trans_level_cols], on="tranid", how="left")
     
-    # line items with created date = NaT mean they are outside of the data range in transactions, so drop them
+    # line df with created date = NaT mean they are outside of the data range in transactions, so drop them
     line_item_df = line_item_df[~line_item_df["created_date"].isna()]
 
     # create new column to combine commission fields and drop the old one
@@ -389,30 +393,30 @@ def main() -> None:
     # get transaction-level and line item data
     trans_types_to_process = [args.trans_type] if args.trans_type else transaction_types
     for trans_type in trans_types_to_process:
-        print(f"Getting {trans_type} transactions and line items from data lake...")
+        print(f"Getting {trans_type} transactions and line df from data lake...")
         transactions, line_items = adl.get_transactions_and_line_items(file_system_client, trans_type)
 
-        print(f"Repairing {trans_type} transactions and line items...")
+        print(f"Repairing {trans_type} transactions and line df...")
         transactions = repair_transactions(transactions)
         line_items = repair_line_items(line_items)
 
-        print(f"Cleaning and filtering {trans_type} transactions and line items...")
+        print(f"Cleaning and filtering {trans_type} transactions and line df...")
         transactions = clean_and_filter_transactions(transactions, start_date, end_date, customers)
         line_items = clean_and_filter_line_items(line_items)
 
-        print(f"\rSaving cleaned and filtered {trans_type} transactions and line items in data lake...")
+        print(f"\rSaving cleaned and filtered {trans_type} transactions and line df in data lake...")
         adl.save_df_as_parquet_in_data_lake(transactions, file_system_client, "cleaned/netsuite",
                                             f"transaction/{trans_type}_cleaned.parquet")
         adl.save_df_as_parquet_in_data_lake(line_items, file_system_client, "cleaned/netsuite",
                                             f"transaction/{trans_type}ItemLineItems_cleaned.parquet")
 
-        print(f"\rAugmenting {trans_type} transactions and line items...")
+        print(f"\rAugmenting {trans_type} transactions and line df...")
         config = load_config("common/config/location_subsidiary_map.json", flush_cache=True)
         transactions = augment_transactions(transactions, customers, config["locations_subsidiary_map"])
         line_items = augment_line_items(line_items, transactions,items, po_lines,
                                         customers, config["locations_subsidiary_map"])
 
-        print(f"\rSaving augmented {trans_type} transactions and line items in data lake...")
+        print(f"\rSaving augmented {trans_type} transactions and line df in data lake...")
         adl.save_df_as_parquet_in_data_lake(transactions, file_system_client, "enhanced/netsuite",
                                             f"transaction/{trans_type}_enhanced.parquet")
         adl.save_df_as_parquet_in_data_lake(line_items, file_system_client, "enhanced/netsuite",
