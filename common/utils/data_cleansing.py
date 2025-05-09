@@ -147,6 +147,7 @@ def get_cutoff_date(months: int = 12) -> pd.Timestamp:
 def clean_and_resolve_manufacturers(df: pd.DataFrame) -> pd.DataFrame:
 
     # replace "empty" values with something more human-readable
+    df["manufacturer"] = df["manufacturer"].fillna("Not Specified")
     df["manufacturer"] = df["manufacturer"].replace("null", "Not Specified")
     df["custom_manufacturer"] = df["custom_manufacturer"].replace("null", "Not Specified")
     df.loc[(df['vsi_mfr'] == "null") | (df['vsi_mfr'] == "Unknown") | (df['vsi_mfr'].isna()), 'vsi_mfr'] = "Not Specified"

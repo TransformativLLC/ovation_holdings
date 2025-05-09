@@ -128,8 +128,8 @@ def clean_and_filter_transactions(df: pd.DataFrame, start_date: str, end_date: s
 def clean_and_filter_line_items(df: pd.DataFrame) -> pd.DataFrame:
     """
     Cleans and filters line item DataFrame based on specified conditions for use in
-    further processing. The function removes unnecessary data, filters relevant
-    records, and resolves manufacturer information.
+    further processing. The function removes unnecessary data, and filters relevant
+    records.
 
     Args:
         df (pd.DataFrame): Input DataFrame containing line item data to be
@@ -137,7 +137,7 @@ def clean_and_filter_line_items(df: pd.DataFrame) -> pd.DataFrame:
 
     Returns:
         pd.DataFrame: A cleaned and filtered DataFrame with irrelevant records and
-        unused fields removed. Also includes resolved manufacturer information.
+        unused fields removed.
     """
 
     # drop 'links' column (Netsuite inserts this)
@@ -149,9 +149,6 @@ def clean_and_filter_line_items(df: pd.DataFrame) -> pd.DataFrame:
     # drop item types that are not related to products/services
     drop_list = ["Description", "Markup", "Other Charge", "Payment", "Discount"]
     df = df[~df["item_type"].isin(drop_list)]
-
-    # move any valid manufacturer into the manufacturer field from custom or vsi fields
-    df = clean_and_resolve_manufacturers(df)
     
     return df
 
@@ -273,7 +270,7 @@ def get_highest_recent_prices(
           .drop(columns=['_orig_idx'])
           .reset_index(drop=True)
     )
-    return result
+    return result.fillna(0.0)
 
 
 def augment_line_items(line_item_df: pd.DataFrame,
@@ -321,7 +318,11 @@ def augment_line_items(line_item_df: pd.DataFrame,
     )
     line_item_df.drop("commission_only", axis=1, inplace=True)
 
+    # add category info
     line_item_df = dm.add_category_levels_and_vsi_info(line_item_df, item_master_df)
+
+    # move any valid manufacturer into the manufacturer field from custom or vsi fields
+    line_item_df = clean_and_resolve_manufacturers(line_item_df)
 
     # calculate financial values for each line item
     line_item_df["total_amount"] = line_item_df["quantity"] * line_item_df["unit_price"]
@@ -331,9 +332,15 @@ def augment_line_items(line_item_df: pd.DataFrame,
 
     # find the highest purchase cost and highest quoted cost for every item using
     # purchase order and line item data over a 12-month rolling window
-    line_item_df = get_highest_recent_prices(line_item_df, purchase_order_df)
+    line_item_df = get_highest_recent_prices(line_item_df, purchase_order_df, output_col='highest_recent_cost')
     line_item_df = get_highest_recent_prices(line_item_df, line_item_df,
-                                             price_col='quote_po_rate', output_col='highest_quoted_cost' )
+                                             price_col='quote_po_rate', output_col='highest_quoted_cost')
+
+    # create a highest_cost column by taking the max of the two
+    line_item_df["highest_cost"] = max(line_item_df["highest_quoted_cost"], line_item_df["highest_recent_cost"])
+
+    # round floats to two decimals again
+    line_item_df = round_float_columns(line_item_df)
 
     return line_item_df
 
@@ -393,30 +400,30 @@ def main() -> None:
     # get transaction-level and line item data
     trans_types_to_process = [args.trans_type] if args.trans_type else transaction_types
     for trans_type in trans_types_to_process:
-        print(f"Getting {trans_type} transactions and line df from data lake...")
+        print(f"Getting {trans_type} transactions and line items from data lake...")
         transactions, line_items = adl.get_transactions_and_line_items(file_system_client, trans_type)
 
-        print(f"Repairing {trans_type} transactions and line df...")
+        print(f"Repairing {trans_type} transactions and line items...")
         transactions = repair_transactions(transactions)
         line_items = repair_line_items(line_items)
 
-        print(f"Cleaning and filtering {trans_type} transactions and line df...")
+        print(f"Cleaning and filtering {trans_type} transactions and line items...")
         transactions = clean_and_filter_transactions(transactions, start_date, end_date, customers)
         line_items = clean_and_filter_line_items(line_items)
 
-        print(f"\rSaving cleaned and filtered {trans_type} transactions and line df in data lake...")
+        print(f"\rSaving cleaned and filtered {trans_type} transactions and line items in data lake...")
         adl.save_df_as_parquet_in_data_lake(transactions, file_system_client, "cleaned/netsuite",
                                             f"transaction/{trans_type}_cleaned.parquet")
         adl.save_df_as_parquet_in_data_lake(line_items, file_system_client, "cleaned/netsuite",
                                             f"transaction/{trans_type}ItemLineItems_cleaned.parquet")
 
-        print(f"\rAugmenting {trans_type} transactions and line df...")
+        print(f"\rAugmenting {trans_type} transactions and line items...")
         config = load_config("common/config/location_subsidiary_map.json", flush_cache=True)
         transactions = augment_transactions(transactions, customers, config["locations_subsidiary_map"])
         line_items = augment_line_items(line_items, transactions,items, po_lines,
                                         customers, config["locations_subsidiary_map"])
 
-        print(f"\rSaving augmented {trans_type} transactions and line df in data lake...")
+        print(f"\rSaving augmented {trans_type} transactions and line items in data lake...")
         adl.save_df_as_parquet_in_data_lake(transactions, file_system_client, "enhanced/netsuite",
                                             f"transaction/{trans_type}_enhanced.parquet")
         adl.save_df_as_parquet_in_data_lake(line_items, file_system_client, "enhanced/netsuite",
