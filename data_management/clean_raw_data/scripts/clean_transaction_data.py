@@ -7,7 +7,8 @@ from typing import Literal
 import common.utils.azure_data_lake_interface as adl
 
 # data cleaning libraries
-from common.utils.data_cleansing import round_float_columns, clean_and_resolve_manufacturers
+from common.utils.data_cleansing import (round_float_columns, clean_and_resolve_manufacturers,
+                                         cast_object_columns_to_string, smart_fillna)
 import common.utils.data_modifications as dm
 
 # Data analysis libraries
@@ -35,8 +36,9 @@ def repair_rows(df: pd.DataFrame) -> pd.DataFrame:
     """
     df = dm.convert_json_strings_to_python_types(df)
 
-    # Replace null values with replacement_value
-    df["location"] = df["location"].replace("null", "Not Specified")
+    # Cast objects to string and then smart fill all na values
+    df = cast_object_columns_to_string(df)
+    df = smart_fillna(df)
 
     # round floats to two decimals
     df = round_float_columns(df)
@@ -58,9 +60,6 @@ def repair_transactions(df: pd.DataFrame) -> pd.DataFrame:
         the `ai_order_type` column.
     """
     df = repair_rows(df)
-    
-    # Replace null values with replacement_value
-    df["ai_order_type"] = df["ai_order_type"].replace("null", "Not Specified")
 
     return df
 
@@ -180,8 +179,15 @@ def augment_rows(df: pd.DataFrame, customer_df: pd.DataFrame, location_map: dict
         on="customer_id",
         how="left")
 
+    # join is creating NaN in subsidiary_name a few rows where customer_id's must not be in customers
+    # even though I am dropping all rows that aren't in customer table ?????
+    df['subsidiary_name'] = df['subsidiary_name'].fillna('Not Specified').astype(str)
+
     # match subsidiary by location in each line item, because they may be different
     df = dm.set_subsidiary_by_location(df, location_map)
+
+    # See all Python types present
+    print(df['subsidiary_name'].map(type).value_counts())
 
     return df
 
@@ -278,7 +284,9 @@ def augment_line_items(line_item_df: pd.DataFrame,
                        item_master_df: pd.DataFrame,
                        purchase_order_df: pd.DataFrame,
                        customer_df: pd.DataFrame,
-                       location_map: dict) -> pd.DataFrame:
+                       location_map: dict,
+                       start_date: str,
+                       end_date: str) -> pd.DataFrame:
     """
     Augments the line df DataFrame with additional details from related DataFrames such as transaction
     data, customer data, and item master data. It also performs data cleaning, feature engineering, and
@@ -301,15 +309,21 @@ def augment_line_items(line_item_df: pd.DataFrame,
             customers, and item master records, as well as computed financial metrics.
     """
 
-    # add customer info
-    line_item_df = augment_rows(line_item_df, customer_df, location_map)
-
     # add transaction info to line_items
     trans_level_cols = ["tranid", "created_date", 'commission_only', 'ai_order_type', 'entered_by']
     line_item_df = line_item_df.merge(transaction_df[trans_level_cols], on="tranid", how="left")
-    
-    # line df with created date = NaT mean they are outside of the data range in transactions, so drop them
+
+    # remove all rows outside the date range
+    line_item_df = line_item_df[(line_item_df["created_date"] >= start_date) & (line_item_df["created_date"] <= end_date)]
+
+    # drop rows with NaT created_date
     line_item_df = line_item_df[~line_item_df["created_date"].isna()]
+
+    # drop rows with customer IDs that are not in the customer data
+    line_item_df = line_item_df[line_item_df["customer_id"].isin(customer_df["customer_id"])]
+
+    # add customer info
+    line_item_df = augment_rows(line_item_df, customer_df, location_map)
 
     # create new column to combine commission fields and drop the old one
     line_item_df["commission_or_mfr_direct"] = (
@@ -336,8 +350,8 @@ def augment_line_items(line_item_df: pd.DataFrame,
     line_item_df = get_highest_recent_prices(line_item_df, line_item_df,
                                              price_col='quote_po_rate', output_col='highest_quoted_cost')
 
-    # create a highest_cost column by taking the max of the two
-    line_item_df["highest_cost"] = max(line_item_df["highest_quoted_cost"], line_item_df["highest_recent_cost"])
+    # create a highest_cost column by taking the max of the two cost columns
+    line_item_df['highest_cost'] = line_item_df[['highest_quoted_cost', 'highest_recent_cost']].max(axis=1)
 
     # round floats to two decimals again
     line_item_df = round_float_columns(line_item_df)
@@ -421,7 +435,7 @@ def main() -> None:
         config = load_config("common/config/location_subsidiary_map.json", flush_cache=True)
         transactions = augment_transactions(transactions, customers, config["locations_subsidiary_map"])
         line_items = augment_line_items(line_items, transactions,items, po_lines,
-                                        customers, config["locations_subsidiary_map"])
+                                        customers, config["locations_subsidiary_map"], start_date, end_date)
 
         print(f"\rSaving augmented {trans_type} transactions and line items in data lake...")
         adl.save_df_as_parquet_in_data_lake(transactions, file_system_client, "enhanced/netsuite",

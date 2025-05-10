@@ -8,6 +8,7 @@ import common.utils.azure_data_lake_interface as adl
 # Data analysis libraries
 import pandas as pd
 
+from common.utils import cast_object_columns_to_string
 # Data manipulation libraries
 from common.utils.data_modifications import convert_json_strings_to_python_types
 
@@ -30,26 +31,22 @@ def clean_and_filter_trans_dataframe(df, start_date, end_date, customers_df):
     return df
 
 
-def clean_and_filter_customer_data(customers: pd.DataFrame, active_cust_ids: set) -> pd.DataFrame:
+def clean_and_filter_customer_data(customers: pd.DataFrame, active_cust_ids: set,
+                                   default_str_for_na: str = "Not Specified") -> pd.DataFrame:
 
     # get customers with ids that appear in active_customer_ids
     active_customers = customers[customers['id'].isin(active_cust_ids)].copy()
 
-    # replace null values with something more descriptive
-    active_customers.loc[active_customers['company_name'] == 'null', 'company_name'] = 'Unknown'
-    active_customers.loc[active_customers['end_market'] == 'null', 'end_market'] = 'Not Assigned'
-
-    # if primary sales rep is null and ai sales rep is null, set primary sales rep to 'Not Assigned'
-    active_customers.loc[(active_customers['primary_sales_rep'] == 'null') & (active_customers['ai_sales_rep'] == 'null'), 'primary_sales_rep'] = 'Not Assigned'
+    # convert to python types
+    active_customers = convert_json_strings_to_python_types(active_customers)
+    active_customers = cast_object_columns_to_string(active_customers)
 
     # if either primary sales rep or ai sales rep is not null, set the value of new column 'sales_rep' to the non-null value, but if they are both non null and don't match, set to 'Multiple'
-    active_customers['sales_rep'] = 'Not Assigned'
-    active_customers.loc[(active_customers['primary_sales_rep'] != 'null') & (active_customers['ai_sales_rep'] == 'null'), 'sales_rep'] = active_customers['primary_sales_rep']
-    active_customers.loc[(active_customers['primary_sales_rep'] == 'null') & (active_customers['ai_sales_rep'] != 'null'), 'sales_rep'] = active_customers['ai_sales_rep']
-    active_customers.loc[(active_customers['primary_sales_rep'] != 'null') & (active_customers['ai_sales_rep'] != 'null') & (active_customers['primary_sales_rep'] != active_customers['ai_sales_rep']), 'sales_rep'] = 'Multiple'
-
-    # fill in values for category that are 'null'
-    active_customers.loc[active_customers['category'] == 'null', 'category'] = 'Not Assigned'
+    active_customers['sales_rep'] = default_str_for_na
+    active_customers['sales_rep'] = active_customers['sales_rep'].astype("string")
+    active_customers.loc[(active_customers['primary_sales_rep'] != default_str_for_na) & (active_customers['ai_sales_rep'] == default_str_for_na), 'sales_rep'] = active_customers['primary_sales_rep']
+    active_customers.loc[(active_customers['primary_sales_rep'] == default_str_for_na) & (active_customers['ai_sales_rep'] != default_str_for_na), 'sales_rep'] = active_customers['ai_sales_rep']
+    active_customers.loc[(active_customers['primary_sales_rep'] != default_str_for_na) & (active_customers['ai_sales_rep'] != default_str_for_na) & (active_customers['primary_sales_rep'] != active_customers['ai_sales_rep']), 'sales_rep'] = 'Multiple'
 
     # rename id to customer_id so it can be joined more easily with transaction data
     active_customers.rename(columns={'id': 'customer_id'}, inplace=True)
@@ -58,8 +55,6 @@ def clean_and_filter_customer_data(customers: pd.DataFrame, active_cust_ids: set
     drop_cols = ['links', 'account_number', 'as_cust_serv_rep', 'control_tech_sales_rep', 'glpc_sales_rep', 'jmi_sales_rep',
                  'promac_sales_rep', 'psi_sales_rep', 'shipping_item', 'url']
     active_customers.drop(drop_cols, axis=1, inplace=True)
-
-    active_customers = convert_json_strings_to_python_types(active_customers)
 
     return active_customers
 

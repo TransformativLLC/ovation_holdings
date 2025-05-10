@@ -16,62 +16,35 @@ __all__ = [
 
 
 # FUNCTIONS
-def convert_json_strings_to_python_types(df: pd.DataFrame, date_format: str = "%m/%d/%Y") -> pd.DataFrame:
+def convert_json_strings_to_python_types(df: pd.DataFrame, field_map: dict) -> pd.DataFrame:
     """
-    Converts string representations of JSON data in a pandas DataFrame to appropriate Python
-    data types. This function processes `object` columns in the DataFrame to handle values
-    representing `null`, boolean, numeric, or datetime values. Specifically, it converts:
-
-    1. String "null" values to `None`.
-    2. String representations of boolean values ("T", "F", "True", "False", etc.) to Python
-       booleans.
-    3. String representations of numeric values to Python numeric types (int or float).
-    4. String representations of dates to Python datetime objects using the specified `date_format`.
-
-    The function handles each column in an iterative process, preserving other data types and
-    columns unaffected.
+    Converts JSON string fields in a DataFrame to specified Python types. This function processes
+    columns in a pandas DataFrame by replacing JSON "null" string values with a designated substitute
+    value, filling any remaining nulls, and converting the field type to a specified Python type.
 
     Args:
-        df (pd.DataFrame): Input DataFrame having columns with potential JSON-like string
-            representations of data.
-        date_format (str): Date format string to parse datetime values. Defaults to "%m/%d/%Y".
+        df (pd.DataFrame): The DataFrame containing JSON string fields to be processed.
+        field_map (dict): A dictionary where keys are type names and values are dictionaries containing
+            the 'fields' (list of column names to process) and 'null_substitute' (value to replace
+            "null" strings and null entries).
 
     Returns:
-        pd.DataFrame: A new DataFrame with updated data types for `object` columns where applicable.
+        pd.DataFrame: A new DataFrame where the specified JSON string fields are converted to the
+        desired Python types.
     """
+    # copy original
     df = df.copy()
 
-    for col in df.columns:
-        if df[col].dtype == object:
-            df[col] = df[col].map(lambda x: None if isinstance(x, str) and x.strip().lower() == "null" else x)
-            df[col] = df[col].map(lambda x: x.strip() if isinstance(x, str) else x)
+    # convert all fields
+    for type_name, type_info in field_map.items():
+        # Get a list of fields and null substitute value for the current type
+        fields = type_info['fields']
+        null_substitute = type_info['null_substitute']
 
-    for col in df.select_dtypes(include=['object']).columns:
-        s = df[col]
-
-        # Datetime conversion with your specified format
-        try:
-            converted = pd.to_datetime(s, format=date_format, errors='raise')
-            df[col] = converted
-            continue
-        except Exception as e:
-            pass
-
-        # Numeric
-        try:
-            converted = pd.to_numeric(s, errors='raise')
-            df[col] = converted
-            continue
-        except Exception:
-            pass
-
-        # Boolean
-        if s.dropna().isin(['T', 'F', 'True', 'False', 'true', 'false']).all():
-            df[col] = s.map({
-                'T': True, 'F': False,
-                'True': True, 'False': False,
-                'true': True, 'false': False
-            })
+        # Replace string "null" with a substitute value and convert type
+        df[fields] = df[fields].replace('null', null_substitute)
+        df[fields] = df[fields].fillna(null_substitute)
+        df[fields] = df[fields].astype(type_name)
 
     return df
 

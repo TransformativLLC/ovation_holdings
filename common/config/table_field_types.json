@@ -1,0 +1,62 @@
+{
+  "item": {
+    "string": {
+      "fields": [
+        "custom_manufacturer",
+        "description",
+        "display_name",
+        "full_name",
+        "item_name",
+        "item_type",
+        "level_1_category",
+        "level_2_category",
+        "level_3_category",
+        "manufacturer",
+        "preferred_vendor",
+        "subsidiary_name",
+        "valve_spec_size",
+        "vsi_item_category",
+        "vsi_mfr"
+      ],
+      "null_substitute": "Not Specified"
+    },
+    "int64": {
+      "fields": [
+        "lead_time",
+        "parent_item",
+        "preferred_stock_level",
+        "reorder_point",
+        "sku"
+      ],
+      "null_substitute": 0
+    },
+    "float64": {
+      "fields": [
+        "average_cost",
+        "handling_cost",
+        "last_purchase_price",
+        "purchase_price",
+        "qty_sold_lifetime",
+        "qty_sold_ninety_days",
+        "qty_sold_one_year",
+        "qty_sold_thirty_days",
+        "quantity_available",
+        "quantity_back_ordered",
+        "quantity_committed",
+        "quantity_on_hand",
+        "quantity_on_order"
+      ],
+      "null_substitute": 0.0
+    },
+    "datetime64[ns]": {
+      "fields": [
+        "first_purchased",
+        "first_sold",
+        "last_purchased",
+        "last_sold",
+        "lastmodifieddate"
+      ],
+      "null_substitute": "1/1/1800"
+    }
+  }
+}

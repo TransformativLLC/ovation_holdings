@@ -13,23 +13,37 @@ __all__ = [
 
 
 ### FUNCTIONS ###
-def load_config(file_path: str, flush_cache: bool = False) -> dict:
+from importlib import resources
+from pathlib import Path
+import json
+import types
+from typing import Union
+
+def load_config(source: Union[str, types.ModuleType], filename: str | None = None) -> dict:
     """
-    Lazily loads a configuration from a JSON file and caches it.
+    Load a JSON config either from disk (when source is a path string)
+    or from a Python package (when source is a module and filename is set).
 
     Args:
-        file_path (str): The path to the JSON configuration file.
-        flush_cache (bool): Whether to flush the cache and reload the configuration. Defaults to False.
+        source:
+          - A filesystem path (str or Path) _or_
+          - a package/module object.
+        filename:
+          - Name of the JSON file when loading from a package.
+          - Ignored when source is a path.
 
     Returns:
-        dict: The configuration dictionary loaded from the JSON file.
+        The parsed JSON as a dict.
     """
-    if not hasattr(load_config, "_cache"):
-        load_config._cache = {}
+    # file-system path
+    if isinstance(source, (str, Path)):
+        p = Path(source)
+        with p.open("r") as f:
+            return json.load(f)
 
-    if file_path not in load_config._cache or flush_cache:
-        with open(file_path, 'r') as file:
-            load_config._cache[file_path] = json.load(file)
-
-    return load_config._cache[file_path]
-
+    # package-resource
+    if filename is None:
+        raise ValueError("When loading from a package, `filename` must be provided")
+    with resources.path(source, filename) as p:
+        with p.open("r") as f:
+            return json.load(f)

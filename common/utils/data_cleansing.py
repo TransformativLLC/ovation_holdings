@@ -9,70 +9,35 @@ import re
 import datetime
 from dateutil.relativedelta import relativedelta
 
+# data cleaning/validation
+from common.utils.data_modifications import convert_json_strings_to_python_types
+from common.utils.data_validation import validate_dataframe_data
+
 # data manipulation
 import pandas as pd
 
 # config
+import common.config
 from common.utils.configuration_management import load_config
 
 
 # delegating to each module to simplify __init__.py
 __all__ = [
-    "smart_fillna",
     "remove_illegal_chars",
     "clean_illegal_chars_in_column",
     "round_float_columns",
     "get_cutoff_date",
     "clean_and_resolve_manufacturers",
+    "clean_and_filter_dataframe",
+    "ValidationError",
 ]
 
+
+class ValidationError(Exception):
+    pass
+
+
 ### FUNCTIONS ###
-def smart_fillna(df: pd.DataFrame, config: dict) -> pd.DataFrame:
-    """
-    Fills missing values in a DataFrame based on provided data type configurations.
-
-    This function iterates through the columns of the provided DataFrame and fills
-    missing values (NaNs) according to the data transformations specified in the
-    configuration dictionary. Each column's data type is matched, and default values
-    are used to replace missing data. Supported data types include string, int,
-    float, datetime64[ns], and bool. If the data type for a column is not specified,
-    it defaults to 'string'.
-
-    Args:
-        df (pd.DataFrame): The input DataFrame that contains missing values to be
-            filled.
-        config (dict): A dictionary specifying data transformations. The key
-            'data_transforms' in this dictionary maps each column name to its
-            respective data type (e.g., 'string', 'int', 'float', 'datetime64[ns]',
-            or 'bool').
-
-    Returns:
-        pd.DataFrame: A DataFrame with NaN values replaced according to the
-        specified configuration.
-    """
-
-    dtypes = config['data_transforms']
-    df_cols = df.columns
-
-    for col in df_cols:
-        cur_type = dtypes.get(col, 'string')
-        match cur_type:
-            case 'string':
-                df.fillna({col: ''}, inplace=True)
-            case 'int':
-                df.fillna({col: 0}, inplace=True)
-            case 'float':
-                df.fillna({col: 0.0}, inplace=True)
-            case 'datetime64[ns]':
-                df.fillna({col: pd.Timestamp('1900-01-01')}, inplace=True)
-            case 'bool':
-                df.fillna({col: False}, inplace=True)
-            case _:
-                df.fillna({col: ''}, inplace=True)
-
-    return df
-
-
 def remove_illegal_chars(value: str) -> str:
     """
     Removes illegal ASCII control characters from a given string.
@@ -145,12 +110,17 @@ def get_cutoff_date(months: int = 12) -> pd.Timestamp:
 
 
 def clean_and_resolve_manufacturers(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Cleans and resolves data in the "manufacturer" column of a DataFrame. Adjusts the values in the manufacturer column by
+    appropriately considering custom manufacturer values and predefined mappings for misspellings.
 
-    # replace "empty" values with something more human-readable
-    df["manufacturer"] = df["manufacturer"].fillna("Not Specified")
-    df["manufacturer"] = df["manufacturer"].replace("null", "Not Specified")
-    df["custom_manufacturer"] = df["custom_manufacturer"].replace("null", "Not Specified")
-    df.loc[(df['vsi_mfr'] == "null") | (df['vsi_mfr'] == "Unknown") | (df['vsi_mfr'].isna()), 'vsi_mfr'] = "Not Specified"
+    Args:
+        df (pd.DataFrame): Input DataFrame containing a "manufacturer" column and related columns ("custom_manufacturer"
+            and "vsi_mfr") to resolve manufacturer data.
+
+    Returns:
+        pd.DataFrame: The DataFrame with cleaned and resolved manufacturer data in the "manufacturer" column.
+    """
 
     # resolve multiple manufacturer columns
     # -- put custom_manufacturer value in manufacturer if "Not Specified"
@@ -171,8 +141,51 @@ def clean_and_resolve_manufacturers(df: pd.DataFrame) -> pd.DataFrame:
     df['manufacturer'] = df['manufacturer'].str.title()
 
     # remove all misspellings
-    mfg_name_map = load_config("common/config/manufacturer_name_map.json", flush_cache=True)["manufacturer_map"]
+    mfg_name_map = load_config(common.config, "manufacturer_name_map.json")["manufacturer_map"]
     for correct_name, misspellings in mfg_name_map.items():
         df.loc[df['manufacturer'].isin(misspellings), 'manufacturer'] = correct_name
+
+    return df
+
+
+def clean_and_filter_dataframe(df: pd.DataFrame, table_name: str, table_fields_map: dict) -> pd.DataFrame:
+    """
+    Cleans and filters a DataFrame to prepare it for further processing. Perform tasks such as converting data types,
+    validating columns, resolving specific field values, filtering rows based on conditions, and rounding numerical values.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame containing raw data that needs cleaning and filtering.
+        table_name (str): The name of the table being processed, used for validation error messages.
+        table_fields_map (dict): A mapping of column names to their expected data types, used for data type conversion.
+
+    Returns:
+        pd.DataFrame: A cleaned and filtered DataFrame ready for further processing.
+
+    Raises:
+        ValidationError: If any columns in the DataFrame fail validation.
+    """
+
+    # drop 'links' column
+    df.drop('links', axis=1, inplace=True)
+
+    # convert to appropriate data types
+    field_conversions = table_fields_map[table_name]
+    df = convert_json_strings_to_python_types(df, field_conversions)
+
+    # validate dataframe data
+    if bad_cols := validate_dataframe_data(df):
+        raise ValidationError(f"The following columns did not pass validation in {table_name} table: {bad_cols}.")
+
+    # move any valid manufacturer into the manufacturer field from custom or vsi fields
+    df = clean_and_resolve_manufacturers(df)
+
+    # remove df with item_names that start with "Inactivated"
+    df = df[~df["item_name"].str.startswith("Inactivated")]
+
+    # remove df with item_names that contain the word "custom"
+    df = df[~df["item_name"].str.contains(r'\bcustom\b', case=False, regex=True)]
+
+    # round floats to two decimals
+    df = round_float_columns(df)
 
     return df
