@@ -56,7 +56,415 @@
         "last_sold",
         "lastmodifieddate"
       ],
-      "null_substitute": "1/1/1800"
+      "null_substitute": "1800-01-01"
+    }
+  },
+
+  "customer": {
+    "string": {
+      "fields": [
+        "account_number",
+        "ai_sales_rep",
+        "as_cust_serv_rep",
+        "category",
+        "company_name",
+        "control_tech_sales_rep",
+        "customer_priority",
+        "default_billing_address",
+        "email",
+        "end_market",
+        "entityid",
+        "glpc_sales_rep",
+        "jmi_sales_rep",
+        "lead_source",
+        "parent_company",
+        "phone",
+        "primary_sales_rep",
+        "primary_service_location",
+        "promac_sales_rep",
+        "psi_sales_rep",
+        "subsidiary_name",
+        "shipping_item",
+        "url"
+      ],
+      "null_substitute": "Not Specified"
+    },
+    "int64": {
+      "fields": [
+        "customer_number",
+        "id"
+      ],
+      "null_substitute": 0
+    },
+    "float64": {
+      "fields": [
+        "credit_limit",
+        "overdue_balance",
+        "total_balance",
+        "unbilled_orders"
+      ],
+      "null_substitute": 0.0
+    },
+    "datetime64[ns]": {
+      "fields": [
+        "datecreated",
+        "first_order_date",
+        "first_sale_date",
+        "last_order_date",
+        "last_sale_date",
+        "lastmodifieddate"
+      ],
+      "null_substitute": "1800-01-01"
+    },
+    "bool": {
+      "fields": [
+        "inactive",
+        "on_credit_hold"
+      ],
+      "null_substitute": false
+    }
+  },
+
+  "vendor": {
+    "string": {
+      "fields": [
+        "category",
+        "company_name",
+        "default_billing_address",
+        "email",
+        "entityid",
+        "externalid",
+        "legal_name",
+        "payables_account",
+        "terms"
+      ],
+      "null_substitute": "Not Specified"
+    },
+    "int64": {
+      "fields": [
+        "entity_number",
+        "id"
+      ],
+      "null_substitute": 0
+    },
+    "float64": {
+      "fields": [
+        "balance",
+        "unbilled_orders"
+      ],
+      "null_substitute": 0.0
+    },
+    "datetime64[ns]": {
+      "fields": [
+        "datecreated",
+        "lastmodifieddate"
+      ],
+      "null_substitute": "1800-01-01"
+    },
+    "bool": {
+      "fields": [
+        "inactive",
+        "ten_ninety_nine_eligible"
+      ],
+      "null_substitute": false
+    }
+  },
+
+  "cust_facing_transaction": {
+    "string": {
+      "fields": [
+        "ai_order_type",
+        "billing_address",
+        "company_email",
+        "company_name",
+        "created_by",
+        "custom_form",
+        "employee",
+        "entered_by",
+        "entity_status",
+        "freshdesk_ticket_number",
+        "inbound_source",
+        "job_type",
+        "last_modified_by",
+        "lead_source",
+        "location",
+        "memo",
+        "nexus",
+        "posting_period",
+        "prepared_for_contact",
+        "prepared_for_contact_email",
+        "shipping_address",
+        "status",
+        "transaction_number",
+        "type",
+        "vsi_service_type"
+      ],
+      "null_substitute": "Not Specified"
+    },
+    "int64": {
+      "fields": [
+        "customer_id",
+        "id",
+        "nx_customer_id",
+        "tranid",
+        "transaction_number"
+      ],
+      "null_substitute": 0
+    },
+    "float64": {
+      "fields": [
+        "amount_paid",
+        "amount_unpaid",
+        "days_open",
+        "estimated_gross_profit",
+        "estimated_gross_profit_percent",
+        "net_amount",
+        "total_cost_estimate"
+      ],
+      "null_substitute": 0.0
+    },
+    "datetime64[ns]": {
+      "fields": [
+        "actual_ship_date",
+        "close_date",
+        "created_date",
+        "date_started",
+        "deliver_by_date",
+        "due_date",
+        "end_date",
+        "expected_close_date",
+        "lastmodifieddate",
+        "promised_date",
+        "start_date",
+        "tran_date"
+      ],
+      "null_substitute": "1800-01-01"
+    },
+    "bool": {
+      "fields": [
+        "commission_only",
+        "finance_charge",
+        "mainline",
+        "reversal",
+        "voided"
+      ],
+      "null_substitute": false
+    }
+  },
+
+  "cust_facing_line_item": {
+    "string": {
+      "fields": [
+        "cost_estimate_type",
+        "created_from",
+        "custom_manufacturer",
+        "description",
+        "display_name",
+        "item_name",
+        "item_type",
+        "level_1_category",
+        "level_2_category",
+        "level_3_category",
+        "location",
+        "manufacturer",
+        "valve_spec_size"
+      ],
+      "null_substitute": "Not Specified"
+    },
+    "int64": {
+      "fields": [
+        "customer_id",
+        "id",
+        "line_number",
+        "nx_customer_id",
+        "sku",
+        "tranid",
+        "transaction_table_id"
+      ],
+      "null_substitute": 0
+    },
+    "float64": {
+      "fields": [
+        "amount",
+        "custcol_ava_taxamount",
+        "custcol_sa_quote_po_rate",
+        "est_extended_cost",
+        "est_gross_profit",
+        "est_gross_profit_percent",
+        "handling_cost",
+        "item_base_price",
+        "labor_hours",
+        "last_purchase_price",
+        "purchased_price",
+        "quantity",
+        "quote_po_rate",
+        "unit_price",
+        "vendor_commission_percent"
+      ],
+      "null_substitute": 0.0
+    },
+    "datetime64[ns]": {
+      "fields": [],
+      "null_substitute": "1800-01-01"
+    },
+    "bool": {
+      "fields": [
+        "assembly_component",
+        "mainline",
+        "special_order",
+        "tax_line"
+      ],
+      "null_substitute": false
+    }
+  },
+
+  "PurchOrd": {
+    "string": {
+      "fields": [
+        "ai_order_type",
+        "billing_address",
+        "company_email",
+        "company_name",
+        "created_by",
+        "custom_form",
+        "employee",
+        "entered_by",
+        "entity_status",
+        "freshdesk_ticket_number",
+        "inbound_source",
+        "job_type",
+        "last_modified_by",
+        "lead_source",
+        "location",
+        "memo",
+        "nexus",
+        "posting_period",
+        "prepared_for_contact",
+        "prepared_for_contact_email",
+        "shipping_address",
+        "status",
+        "transaction_number",
+        "type",
+        "vendor_name",
+        "vsi_service_type"
+      ],
+      "null_substitute": "Not Specified"
+    },
+    "int64": {
+      "fields": [
+        "vendor_id",
+        "id",
+        "nx_customer_id",
+        "tranid",
+        "transaction_number"
+      ],
+      "null_substitute": 0
+    },
+    "float64": {
+      "fields": [
+        "amount_paid",
+        "amount_unpaid",
+        "days_open",
+        "estimated_gross_profit",
+        "estimated_gross_profit_percent",
+        "net_amount",
+        "total_cost_estimate"
+      ],
+      "null_substitute": 0.0
+    },
+    "datetime64[ns]": {
+      "fields": [
+        "actual_ship_date",
+        "close_date",
+        "created_date",
+        "date_started",
+        "deliver_by_date",
+        "due_date",
+        "end_date",
+        "expected_close_date",
+        "lastmodifieddate",
+        "promised_date",
+        "start_date",
+        "tran_date"
+      ],
+      "null_substitute": "1800-01-01"
+    },
+    "bool": {
+      "fields": [
+        "commission_only",
+        "finance_charge",
+        "mainline",
+        "reversal",
+        "voided"
+      ],
+      "null_substitute": false
+    }
+  },
+
+  "PurchOrd_li": {
+    "string": {
+      "fields": [
+        "cost_estimate_type",
+        "created_from",
+        "custom_manufacturer",
+        "description",
+        "display_name",
+        "item_name",
+        "item_type",
+        "level_1_category",
+        "level_2_category",
+        "level_3_category",
+        "location",
+        "manufacturer",
+        "valve_spec_size"
+      ],
+      "null_substitute": "Not Specified"
+    },
+    "int64": {
+      "fields": [
+        "vendor_id",
+        "id",
+        "line_number",
+        "nx_customer_id",
+        "sku",
+        "tranid",
+        "transaction_table_id"
+      ],
+      "null_substitute": 0
+    },
+    "float64": {
+      "fields": [
+        "amount",
+        "custcol_ava_taxamount",
+        "custcol_sa_quote_po_rate",
+        "est_extended_cost",
+        "est_gross_profit",
+        "est_gross_profit_percent",
+        "handling_cost",
+        "item_base_price",
+        "labor_hours",
+        "last_purchase_price",
+        "purchased_price",
+        "quantity",
+        "quote_po_rate",
+        "unit_price",
+        "vendor_commission_percent"
+      ],
+      "null_substitute": 0.0
+    },
+    "datetime64[ns]": {
+      "fields": [],
+      "null_substitute": "1800-01-01"
+    },
+    "bool": {
+      "fields": [
+        "assembly_component",
+        "mainline",
+        "special_order",
+        "tax_line"
+      ],
+      "null_substitute": false
     }
   }
 }
+

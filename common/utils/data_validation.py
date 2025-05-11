@@ -15,7 +15,13 @@ from pandas.api import types as ptypes
 # delegating to each module to simplify __init__.py
 __all__ = [
     "validate_dataframe_data",
+    "ValidationError"
 ]
+
+
+# CUSTOM ERROR CLASSES
+class ValidationError(Exception):
+    pass
 
 
 # FUNCTIONS

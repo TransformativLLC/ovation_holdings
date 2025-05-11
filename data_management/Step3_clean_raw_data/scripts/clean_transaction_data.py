@@ -333,7 +333,7 @@ def augment_line_items(line_item_df: pd.DataFrame,
     line_item_df.drop("commission_only", axis=1, inplace=True)
 
     # add category info
-    line_item_df = dm.add_category_levels_and_vsi_info(line_item_df, item_master_df)
+    line_item_df = dm.add_item_master_fields(line_item_df, item_master_df)
 
     # move any valid manufacturer into the manufacturer field from custom or vsi fields
     line_item_df = clean_and_resolve_manufacturers(line_item_df)

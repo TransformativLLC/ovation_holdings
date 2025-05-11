@@ -3,15 +3,10 @@ This module provides data cleansing/filtering functions shared across the projec
 """
 
 ### IMPORTS ###
-
 # standard libraries
 import re
 import datetime
 from dateutil.relativedelta import relativedelta
-
-# data cleaning/validation
-from common.utils.data_modifications import convert_json_strings_to_python_types
-from common.utils.data_validation import validate_dataframe_data
 
 # data manipulation
 import pandas as pd
@@ -29,12 +24,8 @@ __all__ = [
     "get_cutoff_date",
     "clean_and_resolve_manufacturers",
     "clean_and_filter_dataframe",
-    "ValidationError",
+    "set_subsidiary_by_location",
 ]
-
-
-class ValidationError(Exception):
-    pass
 
 
 ### FUNCTIONS ###
@@ -165,17 +156,6 @@ def clean_and_filter_dataframe(df: pd.DataFrame, table_name: str, table_fields_m
         ValidationError: If any columns in the DataFrame fail validation.
     """
 
-    # drop 'links' column
-    df.drop('links', axis=1, inplace=True)
-
-    # convert to appropriate data types
-    field_conversions = table_fields_map[table_name]
-    df = convert_json_strings_to_python_types(df, field_conversions)
-
-    # validate dataframe data
-    if bad_cols := validate_dataframe_data(df):
-        raise ValidationError(f"The following columns did not pass validation in {table_name} table: {bad_cols}.")
-
     # move any valid manufacturer into the manufacturer field from custom or vsi fields
     df = clean_and_resolve_manufacturers(df)
 
@@ -187,5 +167,30 @@ def clean_and_filter_dataframe(df: pd.DataFrame, table_name: str, table_fields_m
 
     # round floats to two decimals
     df = round_float_columns(df)
+
+    return df
+
+
+def set_subsidiary_by_location(df: pd.DataFrame, location_map: dict,
+                               null_value: str = "null", replacement_value = "Not Specified") -> pd.DataFrame:
+    """
+    Sets the subsidiary name based on the location of the transaction.
+
+    Args:
+        df (pd.DataFrame): The DataFrame containing company data.
+        location_map (dict): The dictionary that holds the mapping of locations to subsidiaries.
+        null_value (str): The value to use for null locations. Defaults to "null".
+        replacement_value: The value to use for locations not found in the location_map. Defaults to "Not Specified".
+
+    Returns:
+        pd.DataFrame: The DataFrame with the 'Subsidiary' column updated based on the location.
+    """
+
+    # Replace subsidiary_name only if location is not "null"
+    df["subsidiary_name"] = np.where(
+        df["location"] == null_value,
+        df["subsidiary_name"],
+        df["location"].map(location_map)
+    )
 
     return df
