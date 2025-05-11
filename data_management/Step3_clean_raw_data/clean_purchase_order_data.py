@@ -52,12 +52,12 @@ def clean_and_filter_purchase_orders(transactions: pd.DataFrame, start_date: str
 
 def clean_po_line_items(line_items: pd.DataFrame) -> pd.DataFrame:
     """
-    Cleans and processes purchase order (PO) line items to prepare them for further analysis
+    Cleans and processes purchase order (PO) line df to prepare them for further analysis
     or storage by removing unnecessary data, filtering relevant item types, and standardizing
     the numerical formats.
 
     Args:
-        line_items (pd.DataFrame): A pandas DataFrame containing purchase order line items that
+        line_items (pd.DataFrame): A pandas DataFrame containing purchase order line df that
             require cleaning and processing. The DataFrame should include columns such as
             "po_line_item" and "item_type" where necessary processing will be applied.
 

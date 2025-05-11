@@ -52,7 +52,7 @@ def clean_and_filter_line_items(df: DataFrame) -> DataFrame:
     Filters and processes a DataFrame containing line item data.
 
     This function performs data cleaning and filtering operations on a DataFrame
-    representing line items. It removes entries with invalid cost or unit price,
+    representing line df. It removes entries with invalid cost or unit price,
     excludes specific unwanted item types, drops unnecessary columns, and rounds
     float values to a consistent number of decimal places.
 
@@ -117,21 +117,21 @@ def main() -> None:
     # get transaction-level and line item data
     trans_types_to_process = [args.trans_type] if args.trans_type else transaction_types
     for trans_type in trans_types_to_process:
-        print(f"Getting {trans_type} transactions and line items from data lake...")
+        print(f"Getting {trans_type} transactions and line df from data lake...")
         transactions = adl.get_parquet_file_from_data_lake(file_system_client, "raw/netsuite",
                                                     f"transaction/{trans_type}_repaired.parquet")
         line_items = adl.get_parquet_file_from_data_lake(file_system_client, "raw/netsuite",
                                                  f"transaction/{trans_type}ItemLineItems_repaired.parquet")
 
-        # add vsi_mfr field to line items so that the manufacturer field can be resolved and cleaned
+        # add vsi_mfr field to line df so that the manufacturer field can be resolved and cleaned
         line_items = line_items.merge(items[['sku', 'vsi_mfr']], how='left', on='sku')
         line_items['vsi_mfr'] = line_items['vsi_mfr'].fillna('Not Specified')
 
-        print(f"Cleaning and filtering {trans_type} transactions and line items...")
+        print(f"Cleaning and filtering {trans_type} transactions and line df...")
         transactions = clean_and_filter_transactions(transactions, start_date, end_date)
         line_items = clean_and_filter_line_items(line_items)
 
-        print(f"\rSaving cleaned and filtered {trans_type} transactions and line items in data lake...")
+        print(f"\rSaving cleaned and filtered {trans_type} transactions and line df in data lake...")
         adl.save_df_as_parquet_in_data_lake(transactions, file_system_client, "cleaned/netsuite",
                                             f"transaction/{trans_type}_cleaned.parquet")
         adl.save_df_as_parquet_in_data_lake(line_items, file_system_client, "cleaned/netsuite",
