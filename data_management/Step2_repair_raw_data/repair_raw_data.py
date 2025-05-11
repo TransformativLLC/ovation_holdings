@@ -83,14 +83,6 @@ def main() -> None:
                 print(f"Retrieving raw {raw_data_table} transaction and line item data...")
                 transactions, line_items = adl.get_transactions_and_line_items(file_system_client, raw_data_table)
 
-                # some morons are putting alphabetic characters in the tranid field. Have to drop them for everyting to work.
-                alphanumeric_mask = transactions['tranid'].astype(str).str.contains(r'^(?=.*[0-9])(?=.*[a-zA-Z])[a-zA-Z0-9]+$',
-                                                                          na=False)
-                transactions = transactions[~alphanumeric_mask]
-                alphanumeric_mask = line_items['tranid'].astype(str).str.contains(r'^(?=.*[0-9])(?=.*[a-zA-Z])[a-zA-Z0-9]+$',
-                                                                          na=False)
-                line_items = line_items[~alphanumeric_mask]
-
                 # since transactions are the same, using a shared JSON field map
                 print(f"Repairing {raw_data_table} transaction and line item data...")
                 transactions = repair_dataframe_data(transactions, "cust_facing_transaction", table_fields_map)

@@ -195,6 +195,7 @@
         "prepared_for_contact_email",
         "shipping_address",
         "status",
+        "tranid",
         "transaction_number",
         "type",
         "vsi_service_type"
@@ -206,7 +207,6 @@
         "customer_id",
         "id",
         "nx_customer_id",
-        "tranid",
         "transaction_number"
       ],
       "null_substitute": 0
@@ -267,6 +267,7 @@
         "level_3_category",
         "location",
         "manufacturer",
+        "tranid",
         "valve_spec_size"
       ],
       "null_substitute": "Not Specified"
@@ -278,7 +279,6 @@
         "line_number",
         "nx_customer_id",
         "sku",
-        "tranid",
         "transaction_table_id"
       ],
       "null_substitute": 0

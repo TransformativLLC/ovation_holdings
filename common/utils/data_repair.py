@@ -15,6 +15,7 @@ import common.utils.data_validation as dv
 
 # delegating to each module to simplify __init__.py
 __all__ = [
+    "safe_date_parse",
     "convert_json_strings_to_python_types",
     "repair_dataframe_data",
 ]
@@ -22,6 +23,16 @@ __all__ = [
 
 # FUNCTIONS
 def safe_date_parse(date_str: str) -> Union[pd.Timestamp, pd.NaT]:
+    """
+    Parses a date string into a pandas Timestamp object. If the date string is out of bounds
+    or cannot be converted into a valid Timestamp, it returns pandas.NaT.
+
+    Args:
+        date_str (str): The date string to parse.
+
+    Returns:
+        Union[pd.Timestamp, pd.NaT]: The parsed Timestamp object or pandas.NaT if parsing fails.
+    """
     try:
         ts = pd.to_datetime(date_str)
     except OutOfBoundsDatetime:
@@ -76,7 +87,21 @@ def convert_json_strings_to_python_types(df: pd.DataFrame, field_map: dict) -> p
 
 
 def repair_dataframe_data(df: pd.DataFrame, table_name: str, table_fields_map: dict) -> pd.DataFrame:
+    """
+    Repairs and prepares a pandas DataFrame for further processing by dropping unnecessary columns, converting data
+    to appropriate types based on a mapping, and validating the data integrity.
 
+    Args:
+        df (pd.DataFrame): The pandas DataFrame to be repaired and validated.
+        table_name (str): The name of the table corresponding to the DataFrame.
+        table_fields_map (dict): A mapping that defines data type conversions for each table.
+
+    Returns:
+        pd.DataFrame: The repaired and validated pandas DataFrame.
+
+    Raises:
+        dv.ValidationError: If the DataFrame contains columns that fail validation.
+    """
     # drop the 'links' column inserted by NetSuite via a web query
     df.drop('links', axis=1, inplace=True)
 
