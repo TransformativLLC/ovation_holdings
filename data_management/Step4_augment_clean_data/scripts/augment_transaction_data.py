@@ -7,62 +7,16 @@ from typing import Literal
 import common.utils.azure_data_lake_interface as adl
 
 # data cleaning libraries
-from common.utils.data_cleansing import (round_float_columns, clean_and_resolve_manufacturers,
-                                         cast_object_columns_to_string, smart_fillna)
-import common.utils.data_modifications as dm
 
 # Data analysis libraries
 import pandas as pd
 
 # config
+import common.config
 from common.utils.configuration_management import load_config
 
 
 # FUNCTIONS
-# could split these functions to make this file smaller, but figured it's easier to follow if it's all in one place
-# REPAIR DATA
-def repair_rows(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Repairs rows in a DataFrame by converting JSON-like strings to Python types and replacing specific null values in
-    the 'location' column with a default value.
-
-    Args:
-        df (pd.DataFrame): A pandas DataFrame containing the data to be processed. This DataFrame should include a
-            'location' column where "null" will be replaced with "Not Specified".
-
-    Returns:
-        pd.DataFrame: A pandas DataFrame with repaired rows, where 'location' column values of "null" are replaced
-        with "Not Specified," and other transformations are applied.
-    """
-    df = dm.convert_json_strings_to_python_types(df)
-
-    # Cast objects to string and then smart fill all na values
-    df = cast_object_columns_to_string(df)
-    df = smart_fillna(df)
-
-    # round floats to two decimals
-    df = round_float_columns(df)
-
-    return df
-
-
-def repair_transactions(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Repairs transactions data by processing and cleaning a DataFrame. This function internally calls
-    another function to repair rows and replaces specific null values in the `ai_order_type` column
-    with a specified default value.
-
-    Args:
-        df (pd.DataFrame): The input DataFrame containing transaction data to be repaired.
-
-    Returns:
-        pd.DataFrame: The corrected and cleaned DataFrame with repaired rows and updated values in
-        the `ai_order_type` column.
-    """
-    df = repair_rows(df)
-
-    return df
-
 
 def repair_line_items(df: pd.DataFrame) -> pd.DataFrame:
     """

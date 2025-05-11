@@ -9,7 +9,8 @@ import datetime
 from dateutil.relativedelta import relativedelta
 
 # data manipulation
-import pandas as pd
+from numpy import where
+from pandas import DataFrame, Timestamp, to_datetime
 
 # config
 import common.config
@@ -20,10 +21,11 @@ from common.utils.configuration_management import load_config
 __all__ = [
     "remove_illegal_chars",
     "clean_illegal_chars_in_column",
+    "drop_dataframe_columns",
     "round_float_columns",
     "get_cutoff_date",
     "clean_and_resolve_manufacturers",
-    "clean_and_filter_dataframe",
+    "clean_dataframe",
     "set_subsidiary_by_location",
 ]
 
@@ -47,16 +49,16 @@ def remove_illegal_chars(value: str) -> str:
     return re.sub(r'[\x00-\x1F\x7F]', '', value)
 
 
-def clean_illegal_chars_in_column(df: pd.DataFrame, column: str) -> pd.DataFrame:
+def clean_illegal_chars_in_column(df: DataFrame, column: str) -> DataFrame:
     """
     Cleans a specific column in the DataFrame by removing illegal characters.
 
     Args:
-        df (pd.DataFrame): The input DataFrame.
+        df (DataFrame): The input DataFrame.
         column (str): Column name to clean.
 
     Returns:
-        pd.DataFrame: The DataFrame with the cleaned column.
+        DataFrame: The DataFrame with the cleaned column.
     """
     df = df.copy()
     # Convert the column to string type if not already
@@ -64,16 +66,40 @@ def clean_illegal_chars_in_column(df: pd.DataFrame, column: str) -> pd.DataFrame
     return df
 
 
-def round_float_columns(df: pd.DataFrame, decimals: int = 2) -> pd.DataFrame:
+def drop_dataframe_columns(df: DataFrame, table_name: str) -> DataFrame:
+    """
+    Drops specified columns from the given DataFrame based on the configuration for the given table name.
+
+    This function reads a configuration file (table_field_drops_on_clean.json) to determine
+    the columns that should be dropped from the provided DataFrame for the specified table.
+    It modifies the original DataFrame in place by removing the columns listed for the given
+    table name.
+
+    Args:
+        df (DataFrame): The DataFrame from which columns will be dropped.
+        table_name (str): The name of the table used to find the columns to drop
+            from the configuration.
+
+    Returns:
+        DataFrame: The modified DataFrame with specified columns removed.
+    """
+    df = df.copy()
+    drop_cols = load_config(common.config, "table_field_drops_on_clean.json")[table_name]
+    df.drop(drop_cols, axis=1, inplace=True)
+
+    return df
+    
+    
+def round_float_columns(df: DataFrame, decimals: int = 2) -> DataFrame:
     """
     Rounds all float columns in the DataFrame to the specified number of decimal places.
 
     Args:
-        df (pd.DataFrame): The input DataFrame.
+        df (DataFrame): The input DataFrame.
         decimals (int, optional): The number of decimals to round to. Defaults to 2.
 
     Returns:
-        pd.DataFrame: A new DataFrame with the float columns rounded.
+        DataFrame: A new DataFrame with the float columns rounded.
     """
     df = df.copy()  # Create a copy to avoid modifying a slice of the original DataFrame.
     float_cols = df.select_dtypes(include=["float"]).columns
@@ -81,7 +107,7 @@ def round_float_columns(df: pd.DataFrame, decimals: int = 2) -> pd.DataFrame:
     return df
 
 
-def get_cutoff_date(months: int = 12) -> pd.Timestamp:
+def get_cutoff_date(months: int = 12) -> Timestamp:
     """
     Calculates a cutoff date based on the current date and a user-defined number
     of months in the past.
@@ -94,23 +120,23 @@ def get_cutoff_date(months: int = 12) -> pd.Timestamp:
         months (int): The number of months to subtract from the current date. Defaults to 12.
 
     Returns:
-        pd.Timestamp: A pandas Timestamp object representing the calculated cutoff date.
+        Timestamp: A pandas Timestamp object representing the calculated cutoff date.
     """
     cutoff_date = datetime.date.today() - relativedelta(months=months)
-    return pd.to_datetime(cutoff_date, errors="coerce")
+    return to_datetime(cutoff_date, errors="coerce")
 
 
-def clean_and_resolve_manufacturers(df: pd.DataFrame) -> pd.DataFrame:
+def clean_and_resolve_manufacturers(df: DataFrame) -> DataFrame:
     """
     Cleans and resolves data in the "manufacturer" column of a DataFrame. Adjusts the values in the manufacturer column by
     appropriately considering custom manufacturer values and predefined mappings for misspellings.
 
     Args:
-        df (pd.DataFrame): Input DataFrame containing a "manufacturer" column and related columns ("custom_manufacturer"
+        df (DataFrame): Input DataFrame containing a "manufacturer" column and related columns ("custom_manufacturer"
             and "vsi_mfr") to resolve manufacturer data.
 
     Returns:
-        pd.DataFrame: The DataFrame with cleaned and resolved manufacturer data in the "manufacturer" column.
+        DataFrame: The DataFrame with cleaned and resolved manufacturer data in the "manufacturer" column.
     """
 
     # resolve multiple manufacturer columns
@@ -139,21 +165,19 @@ def clean_and_resolve_manufacturers(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def clean_and_filter_dataframe(df: pd.DataFrame, table_name: str, table_fields_map: dict) -> pd.DataFrame:
+def clean_dataframe(df: DataFrame, table_name: str) -> DataFrame:
     """
-    Cleans and filters a DataFrame to prepare it for further processing. Perform tasks such as converting data types,
-    validating columns, resolving specific field values, filtering rows based on conditions, and rounding numerical values.
+    Cleans and processes a DataFrame for further usage by applying specific transformations
+    and removing unnecessary data according to the rules defined for the input table.
 
     Args:
-        df (pd.DataFrame): The input DataFrame containing raw data that needs cleaning and filtering.
-        table_name (str): The name of the table being processed, used for validation error messages.
-        table_fields_map (dict): A mapping of column names to their expected data types, used for data type conversion.
+        df (DataFrame): The input DataFrame that requires cleaning and processing.
+        table_name (str): The name of the table, which determines additional rules
+            to be applied during the cleaning process.
 
     Returns:
-        pd.DataFrame: A cleaned and filtered DataFrame ready for further processing.
-
-    Raises:
-        ValidationError: If any columns in the DataFrame fail validation.
+        DataFrame: The cleaned and processed DataFrame with transformations applied as per
+        the defined rules.
     """
 
     # move any valid manufacturer into the manufacturer field from custom or vsi fields
@@ -168,26 +192,40 @@ def clean_and_filter_dataframe(df: pd.DataFrame, table_name: str, table_fields_m
     # round floats to two decimals
     df = round_float_columns(df)
 
+    # drop columns that are not used
+    df = drop_dataframe_columns(df, table_name)
+    
+    # change sign on quantity for future calculations (it's -1 because it is moving out of inventory)
+    if table_name == "line_item":
+        df["quantity"] = df["quantity"] * -1
+        
     return df
 
 
-def set_subsidiary_by_location(df: pd.DataFrame, location_map: dict,
-                               null_value: str = "null", replacement_value = "Not Specified") -> pd.DataFrame:
+def set_subsidiary_by_location(df: DataFrame, location_map: dict, null_value: str = "Not Specified") -> DataFrame:
     """
-    Sets the subsidiary name based on the location of the transaction.
+    Maps the `location` column of a DataFrame to corresponding subsidiary names using
+    a provided location-to-subsidiary mapping. If location is equal to the specified
+    `null_value`, it retains the original `subsidiary_name` value.
+
+    This function is used to standardize subsidiary names based on location, unless
+    the location is flagged as unspecified with the `null_value` placeholder.
 
     Args:
-        df (pd.DataFrame): The DataFrame containing company data.
-        location_map (dict): The dictionary that holds the mapping of locations to subsidiaries.
-        null_value (str): The value to use for null locations. Defaults to "null".
-        replacement_value: The value to use for locations not found in the location_map. Defaults to "Not Specified".
+        df (DataFrame): A pandas DataFrame containing the columns `location` and
+            `subsidiary_name`.
+        location_map (dict): A dictionary that maps location values to their
+            corresponding subsidiary names.
+        null_value (str, optional): A placeholder value used to represent
+            unspecified or null locations. Defaults to "Not Specified".
 
     Returns:
-        pd.DataFrame: The DataFrame with the 'Subsidiary' column updated based on the location.
+        DataFrame: The modified DataFrame with updated `subsidiary_name` values
+            based on the location-to-subsidiary mapping.
     """
 
-    # Replace subsidiary_name only if location is not "null"
-    df["subsidiary_name"] = np.where(
+    # Replace subsidiary_name only if location is not "Not Specified"
+    df["subsidiary_name"] = where(
         df["location"] == null_value,
         df["subsidiary_name"],
         df["location"].map(location_map)

@@ -7,17 +7,13 @@ from typing import Tuple
 # Azure Data Lake libraries
 import common.utils.azure_data_lake_interface as adl
 
-# data cleansing libraries
-from common.utils.data_cleansing import round_float_columns
-
 # Data analysis libraries
 import pandas as pd
 
-# Data management libraries
-from common.utils.data_modifications import convert_json_strings_to_python_types, add_category_levels_and_vsi_info
-
 # config
+import common.config
 from common.utils.configuration_management import load_config
+
 
 # FUNCTIONS
 def clean_filter_augment_purchase_orders(transactions: pd.DataFrame,
