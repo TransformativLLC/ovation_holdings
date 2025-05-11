@@ -169,24 +169,29 @@ def augment_line_items(line_item_df: DataFrame,
                        start_date: str,
                        end_date: str) -> DataFrame:
     """
-    Augments the line item DataFrame with additional data and calculated fields using
-    information from multiple other DataFrames. This process includes merging transaction,
-    customer, and category information, calculating financial metrics, and appending
-    the highest cost data from recent transactions.
+    Augments line item data by merging it with transaction, customer, and item master data.
+    Performs transformations such as date filtering, cost and profit calculations, and adding
+    new category levels. Additionally, computes highest costs using historical purchase
+    order data and reformats the final DataFrame.
 
     Args:
-        line_item_df (DataFrame): DataFrame containing line item details.
-        transaction_df (DataFrame): DataFrame containing transaction-level details.
-        item_master_df (DataFrame): DataFrame containing item master information.
-        purchase_order_df (DataFrame): DataFrame containing purchase order details.
-        customer_df (DataFrame): DataFrame containing customer-related details.
-        location_map (dict): Mapping of location-specific data.
-        start_date (str): Start date for filtering records. Should be in ISO 8601 format.
-        end_date (str): End date for filtering records. Should be in ISO 8601 format.
+        line_item_df (DataFrame): DataFrame containing line item details such as
+            item ID, quantity, and unit price.
+        transaction_df (DataFrame): DataFrame containing transaction-level data with properties
+            such as transaction ID and transaction creation date.
+        item_master_df (DataFrame): DataFrame containing item-level attributes such as categories
+            and manufacturer details.
+        purchase_order_df (DataFrame): DataFrame containing purchase order data required for
+            calculating the highest recent costs.
+        customer_df (DataFrame): DataFrame containing customer information to be added
+            to the line item data.
+        location_map (dict): Dictionary mapping geographical locations to their respective codes or IDs.
+        start_date (str): The starting date filter for filtering transactions based on their creation date.
+        end_date (str): The ending date filter for filtering transactions based on their creation date.
 
     Returns:
-        DataFrame: Enhanced and augmented DataFrame containing additional information
-        and calculated fields for each line item.
+        DataFrame: Augmented line item DataFrame containing enriched data, financial calculations,
+        and reorganized columns.
     """
 
     # add transaction info to line_items
@@ -215,7 +220,7 @@ def augment_line_items(line_item_df: DataFrame,
     line_item_df["total_amount"] = line_item_df["quantity"] * line_item_df["unit_price"]
     line_item_df["total_cost"] = line_item_df["quantity"] * line_item_df["quote_po_rate"]
     line_item_df["gross_profit"] = line_item_df["total_amount"] - line_item_df["total_cost"]
-    line_item_df["gross_profit_percent"] = line_item_df["gross_profit"] / line_item_df["total_amount"]
+    line_item_df["gross_profit_percent"] = (line_item_df["gross_profit"] / line_item_df["total_amount"]) * 100
 
     # find the highest purchase cost and highest quoted cost for every item using
     # purchase order and line item data over a 12-month rolling window
@@ -232,12 +237,37 @@ def augment_line_items(line_item_df: DataFrame,
     # joins may create NA if keys don't match, so fill them in
     line_item_df = smart_fillna(line_item_df)
 
+    # rearrange the columns
+    line_item_df.rename(columns={'quote_po_rate': 'unit_cost'}, inplace=True)
+
+    new_col_order = [
+        'created_date', 'created_from', 'entered_by', 'ai_order_type', 'commission_or_mfr_direct', 'id',
+        'tranid', 'sku', 'item_type', 'vsi_item_category', 'manufacturer',
+        'item_name', 'description', 'display_name', 'level_1_category', 'level_2_category',
+        'level_3_category', 'level_4_category', 'level_5_category', 'level_6_category', 'subsidiary_name',
+        'location', 'customer_id', 'company_name', 'sales_rep', 'end_market', 'quantity', 'unit_cost',
+        'cost_estimate_type', 'highest_quoted_cost', 'highest_recent_cost','highest_cost', 'handling_cost',
+        'labor_hours', 'unit_price', 'total_cost', 'total_amount', 'gross_profit', 'gross_profit_percent',
+    ]
+    line_item_df = line_item_df[new_col_order]
+
     return line_item_df
 
 
 # MAIN
 def main() -> None:
     """
+    Main function script to process transaction data by integrating and augmenting data from a data lake. The script
+    retrieves, processes, and saves transaction-level and line-item data for specified or all transaction types.
+
+    Args:
+        --trans-type (str): Optional. Specifies the type of transaction to process. Accepted values are `Estimate`,
+            `SalesOrd`, and `CustInvc`. If not provided, all transaction types (`Estimate`, `SalesOrd`, and `CustInvc`)
+            will be processed.
+
+    Raises:
+        SystemExit: Raised if mandatory command-line arguments are not provided. Occurs due to the behavior of
+            argparse.ArgumentParser in handling missing or invalid arguments.
     """
 
     # Parse command line arguments
