@@ -5,6 +5,7 @@ This module provides shared functions that repair NetSuite field types and value
 ### IMPORTS ###
 # standard libraries
 from typing import Union
+from unittest import case
 
 # data manipulation and validation
 import pandas as pd
@@ -18,6 +19,7 @@ __all__ = [
     "safe_date_parse",
     "convert_json_strings_to_python_types",
     "repair_dataframe_data",
+    "smart_fillna",
 ]
 
 
@@ -112,5 +114,46 @@ def repair_dataframe_data(df: pd.DataFrame, table_name: str, table_fields_map: d
     # validate dataframe data
     if bad_cols := dv.validate_dataframe_data(df):
         raise dv.ValidationError(f"The following columns did not pass validation in {table_name} table: {bad_cols}.")
+
+    return df
+
+
+def smart_fillna(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Fills missing values in a DataFrame with column-specific values based on data types.
+
+    For columns with missing values, the function fills:
+    - "datetime64[ns]" columns with "1800-01-01".
+    - "string" or "object" columns with the string "Not Specified".
+    - "int64" or "float64" columns with 0.
+    - "bool" columns with False.
+
+    The filled DataFrame is returned while preserving the original DataFrame unchanged.
+
+    Args:
+        df (pd.DataFrame): Input DataFrame in which missing values are to be filled.
+
+    Returns:
+        pd.DataFrame: DataFrame with missing values filled accordingly.
+    """
+
+    df = df.copy()
+
+    for col in df.columns:
+        count = df[col].isna().sum()
+        if count:
+            cur_type = df[col].dtype
+            match cur_type:
+                case "datetime64[ns]":
+                    df[col] = df[col].fillna(pd.Timestamp("1800-01-01"))
+
+                case "string" | "object":
+                    df[col] = df[col].fillna("Not Specified").astype('string')
+
+                case "int64" | "float64":
+                    df[col] = df[col].fillna(df[col].fillna(0))
+
+                case "bool":
+                    df[col] = df[col].fillna(False)
 
     return df

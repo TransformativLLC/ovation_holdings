@@ -25,6 +25,7 @@ __all__ = [
     "round_float_columns",
     "get_cutoff_date",
     "clean_and_resolve_manufacturers",
+    "filter_by_date_range",
     "clean_dataframe",
     "set_subsidiary_by_location",
 ]
@@ -161,6 +162,35 @@ def clean_and_resolve_manufacturers(df: DataFrame) -> DataFrame:
     mfg_name_map = load_config(common.config, "manufacturer_name_map.json")["manufacturer_map"]
     for correct_name, misspellings in mfg_name_map.items():
         df.loc[df['manufacturer'].isin(misspellings), 'manufacturer'] = correct_name
+
+    return df
+
+
+def filter_by_date_range(df: DataFrame, start_date: str, end_date: str) -> DataFrame:
+    """
+    Filters a DataFrame to include only rows within the specified date range.
+
+    This function takes a DataFrame and filters rows based on the values in the
+    'created_date' column. Only rows where 'created_date' falls between the
+    specified start_date and end_date (inclusive) are retained. The filtered
+    DataFrame is returned as output.
+
+    Args:
+        df (DataFrame): Input DataFrame containing data to be filtered.
+        start_date (str): The starting date of the range in 'YYYY-MM-DD' format.
+                          Rows with 'created_date' greater than or equal to this
+                          date are included.
+        end_date (str): The ending date of the range in 'YYYY-MM-DD' format. Rows
+                        with 'created_date' less than or equal to this date are
+                        included.
+
+    Returns:
+        DataFrame: A new DataFrame containing only rows where 'created_date' falls
+        within the specified date range.
+    """
+
+    # remove all rows outside the date range
+    df = df[(df["created_date"] >= start_date) & (df["created_date"] <= end_date)]
 
     return df
 
