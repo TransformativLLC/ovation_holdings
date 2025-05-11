@@ -13,7 +13,7 @@ def stage2(c):
 def stage3(c):
     c.run("python3 clean_vendor_data.py")
 
-@task
+@task(pre=[stage2])
 def stage4(c):
     c.run("python3 clean_transaction_data.py")
 
