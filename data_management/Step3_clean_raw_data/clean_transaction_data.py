@@ -117,7 +117,7 @@ def main() -> None:
     # get transaction-level and line item data
     trans_types_to_process = [args.trans_type] if args.trans_type else transaction_types
     for trans_type in trans_types_to_process:
-        print(f"Getting {trans_type} transactions and line df from data lake...")
+        print(f"Getting {trans_type} transactions and line items from data lake...")
         transactions = adl.get_parquet_file_from_data_lake(file_system_client, "raw/netsuite",
                                                     f"transaction/{trans_type}_repaired.parquet")
         line_items = adl.get_parquet_file_from_data_lake(file_system_client, "raw/netsuite",
@@ -127,11 +127,11 @@ def main() -> None:
         line_items = line_items.merge(items[['sku', 'vsi_mfr']], how='left', on='sku')
         line_items['vsi_mfr'] = line_items['vsi_mfr'].fillna('Not Specified')
 
-        print(f"Cleaning and filtering {trans_type} transactions and line df...")
+        print(f"Cleaning and filtering {trans_type} transactions and line items...")
         transactions = clean_and_filter_transactions(transactions, start_date, end_date)
         line_items = clean_and_filter_line_items(line_items)
 
-        print(f"\rSaving cleaned and filtered {trans_type} transactions and line df in data lake...")
+        print(f"\rSaving cleaned and filtered {trans_type} transactions and line items in data lake...")
         adl.save_df_as_parquet_in_data_lake(transactions, file_system_client, "cleaned/netsuite",
                                             f"transaction/{trans_type}_cleaned.parquet")
         adl.save_df_as_parquet_in_data_lake(line_items, file_system_client, "cleaned/netsuite",
