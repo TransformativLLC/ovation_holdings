@@ -63,7 +63,7 @@ def clean_illegal_chars_in_column(df: DataFrame, column: str) -> DataFrame:
     """
     df = df.copy()
     # Convert the column to string type if not already
-    df[column] = df[column].astype(str).apply(remove_illegal_chars)
+    df[column] = df[column].astype('string').apply(remove_illegal_chars)
     return df
 
 

@@ -1,0 +1,9 @@
+azure-identity
+azure-storage-file-datalake
+invoke
+jupyter
+openpyxl
+pandas
+pyarrow
+python-dotenv
+tqdm
