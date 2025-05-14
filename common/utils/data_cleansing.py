@@ -140,28 +140,44 @@ def clean_and_resolve_manufacturers(df: DataFrame) -> DataFrame:
         DataFrame: The DataFrame with cleaned and resolved manufacturer data in the "manufacturer" column.
     """
 
+    # words that will not be recapitalized below
+    do_not_capitalize = ["Not", "Inc", "Co"]
+
+    # Clean up manufacturer columns
+    for col in ["manufacturer", "custom_manufacturer", "vsi_mfr"]:
+        # replace None values
+        df[col] = df[col].fillna("Not Specified")
+
+        # replace "Unknown" with "Not Specified" (only happens in vsi_mfr
+        df.loc[df[col] == "Unknown", col] = "Not Specified"
+
+        # -- remove periods and commas
+        df[col] = df[col].str.replace(r'[,.]', ' ', regex=True)
+
+        # -- remove leading/trailing spaces and replace multiple spaces with a single space
+        df[col] = df[col].str.strip()
+        df[col] = df[col].str.replace(r'\s+', ' ', regex=True)
+
+        # -- make everything lower case
+        df[col] = df[col].str.lower()
+
+        # remove all misspellings
+        mfg_name_map = load_config(common.config, "manufacturer_name_map.json")["manufacturer_map"]
+        for correct_name, misspellings in mfg_name_map.items():
+            df.loc[df[col].isin(misspellings), col] = correct_name
+
+        # capitalize the first letter in every word
+        df[col] = df[col].str.title()
+
+        # re-capitalize all words that are 3 or fewer letters
+        df[col] = df[col].apply(lambda x: ' '.join(word.upper() if (len(word) <= 3 and word not in do_not_capitalize) else word for word in x.split()))
+
     # resolve multiple manufacturer columns
     # -- put custom_manufacturer value in manufacturer if "Not Specified"
     df.loc[df["manufacturer"] == "Not Specified", "manufacturer"] = df["custom_manufacturer"]
 
     # -- put vsi_mfr value in manufacturer if "Not Specified" (which happens if custom_manufacturer was not specified)
     df.loc[df["manufacturer"] == "Not Specified", "manufacturer"] = df["vsi_mfr"]
-
-    # Clean up manufacturer column
-    # -- remove special characters
-    df['manufacturer'] = df['manufacturer'].str.replace(r'[,.\/-]', ' ', regex=True)
-
-    # -- remove leading/trailing spaces and replace multiple spaces with a single space
-    df['manufacturer'] = df['manufacturer'].str.strip()
-    df['manufacturer'] = df['manufacturer'].str.replace(r'\s+', ' ', regex=True)
-
-    # -- capitalize the first letter of each word (removes all caps)
-    df['manufacturer'] = df['manufacturer'].str.title()
-
-    # remove all misspellings
-    mfg_name_map = load_config(common.config, "manufacturer_name_map.json")["manufacturer_map"]
-    for correct_name, misspellings in mfg_name_map.items():
-        df.loc[df['manufacturer'].isin(misspellings), 'manufacturer'] = correct_name
 
     return df
 
